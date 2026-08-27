@@ -6,13 +6,13 @@
 
 ## 📦 Модули
 
-1. **`vk-sniffer.sgmodule`**
-   - Безопасный сниффер VK. Перехватывает запросы API VK (ленту, рекомендации, видео), исключая сообщения/чаты (`im`, `longpoll`) и медиа-стриминг для предотвращения вылета VPN.
-   - [Ссылка на установку](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk-sniffer.sgmodule)
-
-2. **`vk-noads.sgmodule`**
-   - Полная очистка ленты VK от рекламы, промо-постов, объявлений и блокировка аналитики.
+1. **`vk-noads.sgmodule`**
+   - Блокировка всей рекламы VK, промо-постов, объявлений, кликов трекеров (`sdk.mail.ru`, `rv.mail.ru`, `eh.vk.com`, `vk-analytics.ru`).
    - [Ссылка на установку](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk-noads.sgmodule)
+
+2. **`vk-sniffer.sgmodule`**
+   - Безопасный сниффер VK. Перехватывает запросы API VK (ленту, рекомендации, видео), исключая сообщения/чаты (`im`, `longpoll`, `eh.vk.com`) для стабильности VPN.
+   - [Ссылка на установку](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk-sniffer.sgmodule)
 
 ---
 

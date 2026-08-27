@@ -25,23 +25,19 @@
             if (data && data.response) {
                 let items = data.response.items;
                 if (Array.isArray(items)) {
-                    const originalCount = items.length;
                     data.response.items = items.filter(item => {
                         if (!item) return false;
 
-                        // 1. Прямые рекламные метки VK
                         if (item.type === 'ads' || item.type === 'promoted' || item.type === 'app' || item.type === 'authors_rec' || item.type === 'recommended') {
                             removedCount++;
                             return false;
                         }
 
-                        // 2. Наличие полей рекламы / баннеров
                         if (item.ads || item.ad_data || item.promoted_post || item.ads_title) {
                             removedCount++;
                             return false;
                         }
 
-                        // 3. Рекламный источник или клип
                         if (item.post_source && item.post_source.type === 'ad') {
                             removedCount++;
                             return false;

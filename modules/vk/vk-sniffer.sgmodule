@@ -1,11 +1,11 @@
 #!name=VK Traffic Inspector & Sniffer
-#!desc=Специализированный сниффер трафика ВКонтакте (VK iOS). Безопасно анализирует методы API VK (лента, рекомендации, видео), исключая чаты (im/longpoll) и медиа-потоки для 100% стабильности VPN.
+#!desc=Специализированный сниффер трафика ВКонтакте (VK iOS). Безопасно анализирует методы API VK (лента, рекомендации, видео), исключая чаты (im/longpoll), сокеты (eh/persiq) и медиа-потоки для 100% стабильности VPN.
 #!category=Sniffer
 
 [Script]
-# Исключаем чаты (im/longpoll) и стриминг, режем по размеру 512KB для защиты RAM
-VK_Sniffer = type=http-response,pattern=^https?:\/\/(?:api\.vk\.com|api\.vk\.me)\/method\/(?!im|longpoll|push).*requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_sniffer.js
+# Исключаем чаты (im/longpoll) и сокеты, режем по размеру 512KB для защиты RAM
+VK_Sniffer = type=http-response,pattern=^https?:\/\/(?:api\.vk\.com|api\.vk\.me|internal\.api\.vk\.ru)\/method\/(?!im|longpoll|push).*requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_sniffer.js
 
 [MITM]
-# Включаем MitM только для основных API доменов VK, исключая лонгполы и CDN картинки/видео
-hostname = %APPEND% api.vk.com, api.vk.me, *.vk.com, -lp.vk.com, -queue.vk.com, -im.vk.com, -*.userapi.com, -*.vkuseraudio.net, -*.mycdn.me
+# Исключаем лонгполы, WebSocket сокеты (eh/persiq/queue) и CDN картинки/видео
+hostname = %APPEND% api.vk.com, api.vk.me, internal.api.vk.ru, *.vk.com, -lp.vk.com, -queue.vk.com, -queuev4.vk.ru, -im.vk.com, -eh.vk.com, -persiq.vk.com, -*.userapi.com, -*.vkuserphoto.ru, -*.vkuseraudio.net, -*.mycdn.me
