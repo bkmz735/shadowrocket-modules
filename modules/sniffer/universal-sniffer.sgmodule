@@ -1,9 +1,11 @@
 #!name=Universal Traffic Inspector & Sniffer
-#!desc=Универсальный сниффер трафика для Shadowrocket (iOS). Перехватывает HTTP/HTTPS ответы, анализирует JSON-структуру API, автоматически находит блоки рекламы, банеров и промо-акций.
+#!desc=Безопасный универсальный сниффер трафика для Shadowrocket (iOS). Анализирует ответы API в формате JSON, выводит структуру в лог и находит блоки рекламы. Оптимизирован против вылетов VPN.
 #!category=Sniffer
 
 [Script]
-Universal_Sniffer = type=http-response,pattern=^https?:\/\/.*,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal_sniffer.js
+# max-size=524288 (512KB) защищает от превышения лимита памяти iOS NetworkExtension (50MB) и вылета VPN
+Universal_Sniffer = type=http-response,pattern=^https?:\/\/(?!.*(?:\.png|\.jpg|\.jpeg|\.gif|\.webp|\.mp4|\.m3u8|\.ts|\.css|\.woff2|\.zip)).*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal_sniffer.js
 
 [MITM]
-hostname = %APPEND% *
+# Исключаем системные домены Apple, Push-уведомления и тяжёлые медиа-потоки для предотвращения разрывов VPN
+hostname = %APPEND% -*.apple.com, -*.icloud.com, -*.push.apple.com, -*.cdn-apple.com, -*.mzstatic.com, -*.gvt1.com, -*.googlevideo.com, *
