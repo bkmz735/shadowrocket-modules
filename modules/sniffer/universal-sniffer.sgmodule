@@ -1,0 +1,9 @@
+#!name=Universal Traffic Inspector & Sniffer
+#!desc=Универсальный сниффер трафика для Shadowrocket (iOS). Перехватывает HTTP/HTTPS ответы, анализирует JSON-структуру API, автоматически находит блоки рекламы, банеров и промо-акций.
+#!category=Sniffer
+
+[Script]
+Universal_Sniffer = type=http-response,pattern=^https?:\/\/.*,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal_sniffer.js
+
+[MITM]
+hostname = %APPEND% *

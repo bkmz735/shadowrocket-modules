@@ -1,0 +1,28 @@
+#!name=Universal Ad & Spam Cleaner
+#!desc=Универсальный модуль фильтрации и вырезания рекламы, спама, промо-блоков и баннеров из ответов приложений на iOS через Shadowrocket.
+#!category=AdBlock
+
+#!arguments=keywords:реклама|промо|banner|sponsored|myTarget|yandex
+#!arguments-desc=keywords:список ключевых слов через | для вырезания блоков рекламы из JSON
+
+[Script]
+Universal_Cleaner = type=http-response,pattern=^https?:\/\/.*,requires-body=1,max-size=0,argument={{{keywords}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal_cleaner.js
+
+[Rule]
+# Известные трекеры и рекламные сети
+DOMAIN-SUFFIX,adriver.ru,REJECT
+DOMAIN-SUFFIX,buzzoola.com,REJECT
+DOMAIN-SUFFIX,appmetrica.yandex.net,REJECT
+DOMAIN-SUFFIX,mobile.yandex.net,REJECT
+DOMAIN-SUFFIX,an.yandex.ru,REJECT
+DOMAIN-SUFFIX,adjust.com,REJECT
+DOMAIN-SUFFIX,adjust.net.in,REJECT
+DOMAIN-SUFFIX,adjust.world,REJECT
+DOMAIN-SUFFIX,app-analytics-services.com,REJECT
+DOMAIN-SUFFIX,vk-analytics.ru,REJECT
+DOMAIN-SUFFIX,uxfeedback.ru,REJECT
+DOMAIN-SUFFIX,mytarget.com,REJECT
+DOMAIN-SUFFIX,target.my.com,REJECT
+
+[MITM]
+hostname = %APPEND% *
