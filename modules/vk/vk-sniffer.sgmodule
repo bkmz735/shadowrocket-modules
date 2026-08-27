@@ -1,9 +1,9 @@
 #!name=VK Traffic Inspector & Sniffer
-#!desc=Специализированный сниффер трафика ВКонтакте (VK iOS). Детально дампят ответы API VK, подсвечивает рекламные объекты и показывает ключевые поля.
+#!desc=Специализированный сниффер трафика ВКонтакте (VK iOS). Безопасно инспектирует вызовы API VK, исключая SSL Pinned домены (internal.api.vk.ru) и сокеты.
 #!category=Sniffer
 
 [Script]
-VK_Sniffer = type=http-response,pattern=^https?:\/\/(?:api\.vk\.(?:com|me|ru)|internal\.api\.vk\.ru)\/method\/.*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_sniffer.js
+VK_Sniffer = type=http-response,pattern=^https?:\/\/(?:api\.vk\.(?:com|me|ru))\/method\/.*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_sniffer.js
 
 [MITM]
-hostname = %APPEND% api.vk.com, api.vk.me, api.vk.ru, internal.api.vk.ru, *.vk.com, *.vk.ru, -eh.vk.com, -persiq.vk.com, -lp.vk.com, -queue.vk.com, -queuev4.vk.ru, -im.vk.com, -*.userapi.com, -*.vkuserphoto.ru, -*.vkuseraudio.net, -*.mycdn.me
+hostname = %APPEND% api.vk.com, api.vk.me, api.vk.ru, -internal.api.vk.ru, -eh.vk.com, -persiq.vk.com, -lp.vk.com, -queue.vk.com, -queuev4.vk.ru, -im.vk.com, -*.userapi.com, -*.vkuserphoto.ru, -*.vkuseraudio.net, -*.mycdn.me

@@ -1,9 +1,10 @@
 #!name=VK NoAds & Clean Feed
-#!desc=Полная блокировка рекламы, промо-постов, баннеров, промо-виджетов и трекеров в VK (ВКонтакте) на iOS через Shadowrocket.
+#!desc=Полная блокировка рекламы, промо-постов, баннеров и трекеров в VK (ВКонтакте) на iOS через Shadowrocket. Без сбоев SSL Pinning.
 #!category=AdBlock
 
 [Script]
-VK_Cleaner = type=http-response,pattern=^https?:\/\/(?:api\.vk\.(?:com|me|ru)|internal\.api\.vk\.ru)\/method\/.*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_cleaner.js
+# Очистка рекламы в VK API (api.vk.com, api.vk.me, api.vk.ru)
+VK_Cleaner = type=http-response,pattern=^https?:\/\/(?:api\.vk\.(?:com|me|ru))\/method\/.*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_cleaner.js
 
 [Rule]
 DOMAIN-SUFFIX,vk-analytics.ru,REJECT
@@ -23,4 +24,5 @@ DOMAIN,trace-flow.ru,REJECT
 ^https?:\/\/api\.vk\.(?:com|me|ru)\/method\/promotedPost\..* - reject-200
 
 [MITM]
-hostname = %APPEND% api.vk.com, api.vk.me, api.vk.ru, internal.api.vk.ru, *.vk.com, *.vk.ru, -eh.vk.com, -persiq.vk.com, -lp.vk.com, -queue.vk.com, -queuev4.vk.ru, -im.vk.com, -*.userapi.com, -*.vkuserphoto.ru, -*.vkuseraudio.net, -*.mycdn.me
+# Перехватываем публичный API VK, строго ИСКЛЮЧАЯ internal.api.vk.ru (SSL Pinning), eh.vk.com, сокеты и медиа CDN
+hostname = %APPEND% api.vk.com, api.vk.me, api.vk.ru, -internal.api.vk.ru, -eh.vk.com, -persiq.vk.com, -lp.vk.com, -queue.vk.com, -queuev4.vk.ru, -im.vk.com, -*.userapi.com, -*.vkuserphoto.ru, -*.vkuseraudio.net, -*.mycdn.me
