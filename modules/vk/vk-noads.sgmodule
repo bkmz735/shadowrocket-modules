@@ -1,5 +1,5 @@
 #!name=VK NoAds & Clean Feed
-#!desc=Полная блокировка рекламы, промо-постов, баннеров и трекеров в VK (ВКонтакте) на iOS через Shadowrocket. Без сбоев SSL Pinning.
+#!desc=Полная блокировка рекламы, промо-постов, баннеров и трекеров в VK (ВКонтакте) на iOS через Shadowrocket. Идеальная стабильность сети (исправлен SSL Pinning).
 #!category=AdBlock
 
 [Script]
@@ -24,5 +24,5 @@ DOMAIN,trace-flow.ru,REJECT
 ^https?:\/\/api\.vk\.(?:com|me|ru)\/method\/promotedPost\..* - reject-200
 
 [MITM]
-# Перехватываем публичный API VK, строго ИСКЛЮЧАЯ internal.api.vk.ru (SSL Pinning), eh.vk.com, сокеты и медиа CDN
-hostname = %APPEND% api.vk.com, api.vk.me, api.vk.ru, -internal.api.vk.ru, -eh.vk.com, -persiq.vk.com, -lp.vk.com, -queue.vk.com, -queuev4.vk.ru, -im.vk.com, -*.userapi.com, -*.vkuserphoto.ru, -*.vkuseraudio.net, -*.mycdn.me
+# СТРОГО: Перехватываем только 3 конкретных домена API. Никаких *.vk.com, чтобы не сломать системные пинги и сокеты!
+hostname = %APPEND% api.vk.com, api.vk.me, api.vk.ru
