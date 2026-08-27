@@ -8,6 +8,7 @@
 
 | Приложение / Сервис | Описание | Ссылка на установку (в 1 клик) | Документация |
 | :--- | :--- | :--- | :--- |
+| **GetContact** | Блокировка всей рекламы, промо-поп-апов и аналитики | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact-noads.sgmodule) | [Документация](modules/getcontact/README.md) |
 | **Universal Sniffer** | Универсальный сниффер и инспектор HTTP(S) трафика | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal-sniffer.sgmodule) | [Документация](modules/sniffer/README.md) |
 | **Avito (Авито)** | Блокировка рекламы, промо-блоков и фильтрация объявлений | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito-noads.sgmodule) | [Документация](modules/avito/README.md) |
 
@@ -32,6 +33,10 @@
 
 ```text
 ├── modules/
+│   ├── getcontact/                # Модуль для GetContact (iOS/Android)
+│   │   ├── README.md
+│   │   ├── getcontact-noads.sgmodule
+│   │   └── getcontact_cleaner.js
 │   ├── avito/                     # Модуль для Avito iOS
 │   │   ├── README.md
 │   │   ├── avito-noads.sgmodule

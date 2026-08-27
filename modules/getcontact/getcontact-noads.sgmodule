@@ -1,0 +1,38 @@
+#!name=GetContact NoAds & Premium UI
+#!desc=Полная блокировка встроенной рекламы, промо-поп-апов, предложений Premium и аналитики в GetContact (iOS/Android).
+#!category=AdBlock
+
+[Script]
+# Скрипт очистки JSON-ответов: удаляем всплывающие окна, баннеры и флаги рекламы
+GetContact_Cleaner = type=http-response,pattern=^https?:\/\/(?:api|premium)\.getcontact\.com\/.*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact_cleaner.js
+
+[Rule]
+# Блокировка аналитики самого GetContact
+DOMAIN-SUFFIX,analytics.getcontact.com,REJECT
+DOMAIN-KEYWORD,getcontact-analytics,REJECT
+
+# Популярные рекламные сети и трекеры, встроенные в GetContact
+DOMAIN-SUFFIX,applovin.com,REJECT
+DOMAIN-SUFFIX,applvn.com,REJECT
+DOMAIN-SUFFIX,appsflyer.com,REJECT
+DOMAIN-SUFFIX,adjust.com,REJECT
+DOMAIN-SUFFIX,adjust.world,REJECT
+DOMAIN-SUFFIX,googleadservices.com,REJECT
+DOMAIN-SUFFIX,googlesyndication.com,REJECT
+DOMAIN-SUFFIX,pubmatic.com,REJECT
+DOMAIN-SUFFIX,criteo.com,REJECT
+DOMAIN-SUFFIX,criteo.net,REJECT
+DOMAIN-SUFFIX,inmobi.com,REJECT
+DOMAIN-SUFFIX,smaato.net,REJECT
+DOMAIN-SUFFIX,rubiconproject.com,REJECT
+DOMAIN-SUFFIX,ads.mopub.com,REJECT
+
+[URL Rewrite]
+# Жесткая блокировка прямых рекламных и промо-эндпоинтов GetContact
+^https?:\/\/(?:api|premium)\.getcontact\.com\/.*\/ads\/.* - reject-200
+^https?:\/\/(?:api|premium)\.getcontact\.com\/.*\/popups\/.* - reject-200
+^https?:\/\/(?:api|premium)\.getcontact\.com\/.*\/promos\/.* - reject-200
+
+[MITM]
+# Перехват API GetContact
+hostname = %APPEND% api.getcontact.com, premium.getcontact.com, *.getcontact.com
