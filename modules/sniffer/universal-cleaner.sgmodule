@@ -1,16 +1,14 @@
 #!name=Universal Ad & Spam Cleaner
-#!desc=Безопасный универсальный модуль фильтрации рекламы, спама и баннеров из ответов приложений на iOS через Shadowrocket. Оптимизирован против вылетов VPN.
+#!desc=Универсальный модуль фильтрации рекламы и баннеров из ответов приложений на iOS через Shadowrocket.
 #!category=AdBlock
 
 #!arguments=keywords:реклама|промо|banner|sponsored|myTarget|yandex
 #!arguments-desc=keywords:список ключевых слов через | для вырезания блоков рекламы из JSON
 
 [Script]
-# max-size=524288 (512KB) для защиты памяти NetworkExtension от переполнения
-Universal_Cleaner = type=http-response,pattern=^https?:\/\/(?!.*(?:\.png|\.jpg|\.jpeg|\.gif|\.webp|\.mp4|\.m3u8|\.ts|\.css|\.woff2|\.zip)).*,requires-body=1,max-size=524288,argument={{{keywords}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal_cleaner.js
+Universal_Cleaner = type=http-response,pattern=^https?:\/\/(?!.*(?:\.png|\.jpg|\.jpeg|\.gif|\.webp|\.mp4|\.m3u8|\.ts|\.css|\.woff2|\.zip|longpoll|\/im|\/push)).*,requires-body=1,max-size=524288,argument={{{keywords}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal_cleaner.js
 
 [Rule]
-# Известные трекеры и рекламные сети
 DOMAIN-SUFFIX,adriver.ru,REJECT
 DOMAIN-SUFFIX,buzzoola.com,REJECT
 DOMAIN-SUFFIX,appmetrica.yandex.net,REJECT
@@ -26,5 +24,4 @@ DOMAIN-SUFFIX,mytarget.com,REJECT
 DOMAIN-SUFFIX,target.my.com,REJECT
 
 [MITM]
-# Исключаем системные домены Apple и стримы для стабильности VPN
-hostname = %APPEND% -*.apple.com, -*.icloud.com, -*.push.apple.com, -*.cdn-apple.com, -*.mzstatic.com, -*.gvt1.com, -*.googlevideo.com, *
+hostname = %APPEND% -*.apple.com, -*.icloud.com, -*.push.apple.com, -*.cdn-apple.com, -*.mzstatic.com, -*.gvt1.com, -*.googlevideo.com, -lp.vk.com, -queue.vk.com, -im.vk.com, -*.userapi.com, -*.vkuseraudio.net, -*.mycdn.me, *

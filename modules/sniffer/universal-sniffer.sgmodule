@@ -1,11 +1,11 @@
 #!name=Universal Traffic Inspector & Sniffer
-#!desc=Безопасный универсальный сниффер трафика для Shadowrocket (iOS). Анализирует ответы API в формате JSON, выводит структуру в лог и находит блоки рекламы. Оптимизирован против вылетов VPN.
+#!desc=Универсальный сниффер трафика для Shadowrocket (iOS). Перехватывает HTTP/HTTPS ответы API, выводит структуру в лог. Безопасен для VK, Telegram и системных сервисов.
 #!category=Sniffer
 
 [Script]
-# max-size=524288 (512KB) защищает от превышения лимита памяти iOS NetworkExtension (50MB) и вылета VPN
-Universal_Sniffer = type=http-response,pattern=^https?:\/\/(?!.*(?:\.png|\.jpg|\.jpeg|\.gif|\.webp|\.mp4|\.m3u8|\.ts|\.css|\.woff2|\.zip)).*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal_sniffer.js
+# Исключаем лонгполы, чаты, стриминг и режем по размеру 512KB для стабильности VPN
+Universal_Sniffer = type=http-response,pattern=^https?:\/\/(?!.*(?:\.png|\.jpg|\.jpeg|\.gif|\.webp|\.mp4|\.m3u8|\.ts|\.css|\.woff2|\.zip|longpoll|\/im|\/push)).*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal_sniffer.js
 
 [MITM]
-# Исключаем системные домены Apple, Push-уведомления и тяжёлые медиа-потоки для предотвращения разрывов VPN
-hostname = %APPEND% -*.apple.com, -*.icloud.com, -*.push.apple.com, -*.cdn-apple.com, -*.mzstatic.com, -*.gvt1.com, -*.googlevideo.com, *
+# Исключаем системные сервисы, longpoll чаты VK/Telegram и CDN медиа-потоки
+hostname = %APPEND% -*.apple.com, -*.icloud.com, -*.push.apple.com, -*.cdn-apple.com, -*.mzstatic.com, -*.gvt1.com, -*.googlevideo.com, -lp.vk.com, -queue.vk.com, -im.vk.com, -*.userapi.com, -*.vkuseraudio.net, -*.mycdn.me, *

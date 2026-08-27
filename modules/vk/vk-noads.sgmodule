@@ -1,0 +1,24 @@
+#!name=VK NoAds & Clean Feed
+#!desc=Полная блокировка рекламы, промо-постов, клипов, рекомендаций и трекеров в VK (ВКонтакте) на iOS через Shadowrocket.
+#!category=AdBlock
+
+[Script]
+# Фильтрация рекламы в лентах VK
+VK_Cleaner = type=http-response,pattern=^https?:\/\/(?:api\.vk\.com|api\.vk\.me)\/method\/(?:newsfeed\.get|feed\.get|execute|video\.get|recommendations).*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_cleaner.js
+
+[Rule]
+# Блокировка аналитики и рекламы VK
+DOMAIN-SUFFIX,stats.vk-analytics.ru,REJECT
+DOMAIN-SUFFIX,vk-analytics.ru,REJECT
+DOMAIN-SUFFIX,m.vk.com/ads.php,REJECT
+DOMAIN-SUFFIX,ads.vk.com,REJECT
+DOMAIN-SUFFIX,mytarget.com,REJECT
+DOMAIN-SUFFIX,target.my.com,REJECT
+
+[URL Rewrite]
+# Блокировка вызовов рекламных баннеров
+^https?:\/\/api\.vk\.(?:com|me)\/method\/ads\..* - reject-200
+^https?:\/\/api\.vk\.(?:com|me)\/method\/promotedPost\..* - reject-200
+
+[MITM]
+hostname = %APPEND% api.vk.com, api.vk.me, *.vk.com, -lp.vk.com, -queue.vk.com, -im.vk.com, -*.userapi.com, -*.vkuseraudio.net, -*.mycdn.me
