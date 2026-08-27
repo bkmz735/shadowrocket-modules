@@ -1,30 +1,16 @@
 ﻿/**
  * Скрипт очистки выдачи Avito API (app.avito.ru)
  * 1. Вырезает баннеры, рекламу и промо-виджеты.
- * 2. Фильтрует любые объявления по стоп-словам из argument (ищет совпадения по всему объекту объявления).
+ * 2. Фильтрует любые объявления по стоп-словам из argument="..."
  * 3. Логирует статистику и статус стоп-слов.
  */
 
 let blockedKeywords = [];
 
-if (typeof $argument !== 'undefined' && $argument !== null) {
-    let rawArg = String($argument).trim();
-    
-    if (rawArg.startsWith('{') && rawArg.endsWith('}')) {
-        try {
-            let parsed = JSON.parse(rawArg);
-            if (parsed.keywords) rawArg = String(parsed.keywords);
-        } catch (e) {}
-    }
-    
-    if (rawArg.toLowerCase().startsWith('keywords:') || rawArg.toLowerCase().startsWith('keywords=')) {
-        rawArg = rawArg.substring(rawArg.indexOf(':') + 1 || rawArg.indexOf('=') + 1);
-    }
-    
-    rawArg = rawArg.replace(/^["'{]+|["'}]+$/g, '').trim();
-
-    if (rawArg !== '' && rawArg !== '{keywords}') {
-        blockedKeywords = rawArg.split(/[,;|]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+if (typeof $argument === 'string' && $argument.trim() !== '') {
+    let raw = $argument.replace(/^["'{]+|["'}]+$/g, '').trim();
+    if (raw !== '' && raw !== 'keywords' && raw !== '{keywords}') {
+        blockedKeywords = raw.split(/[,;|]/).map(s => s.trim().toLowerCase()).filter(Boolean);
     }
 }
 
@@ -79,7 +65,7 @@ try {
         return false;
     };
 
-    // 100% глубокий поиск стоп-слов во всем объекте карточки (заголовок, описание, параметры, подзаголовок)
+    // 100% глубокий поиск стоп-слов во всем объекте карточки
     const containsBlockedKeyword = (item) => {
         if (!blockedKeywords || blockedKeywords.length === 0) return false;
 
@@ -142,7 +128,7 @@ try {
     }
 
     console.log(`\n🛡️ [Avito Cleaner] Статистика:`);
-    console.log(`   Стоп-слова: ` + (blockedKeywords.length ? `[${blockedKeywords.join(', ')}]` : `НЕ ЗАДАНЫ (список пуст)`));
+    console.log(`   Стоп-слова: ` + (blockedKeywords.length ? `[${blockedKeywords.join(', ')}]` : `НЕ ЗАДАНЫ`));
     console.log(`   Всего элементов: ${stats.total} | Удалено рекламы: ${stats.adsRemoved} | Удалено по стоп-словам: ${stats.keywordsRemoved}`);
     if (stats.removedTitles.length > 0) {
         console.log(`   Вырезано: ${stats.removedTitles.slice(0, 5).join('; ')}`);
