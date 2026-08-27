@@ -1,13 +1,13 @@
 #!name=VK NoAds & Clean Feed
-#!desc=Полная блокировка рекламы, промо-постов, трекеров и телеметрии в VK (ВКонтакте) на iOS через Shadowrocket. Без ложных срабатываний сети.
+#!desc=Полная блокировка рекламы, промо-постов, баннеров и трекеров в VK (ВКонтакте) на iOS через Shadowrocket. Поддержка api.vk.ru и api.vk.com.
 #!category=AdBlock
 
 [Script]
-# Очистка рекламы в ленте VK API
-VK_Cleaner = type=http-response,pattern=^https?:\/\/(?:api\.vk\.com|api\.vk\.me)\/method\/(?:newsfeed\.get|feed\.get|execute|video\.get|recommendations).*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_cleaner.js
+# Перехватываем все методы API VK на api.vk.ru, api.vk.com, api.vk.me и internal.api.vk.ru
+VK_Cleaner = type=http-response,pattern=^https?:\/\/(?:api\.vk\.(?:com|me|ru)|internal\.api\.vk\.ru)\/method\/.*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_cleaner.js
 
 [Rule]
-# Блокировка рекламы, аналитики и трекеров (без блокировки пингов связи)
+# Блокировка рекламных доменов, баннерных сетей и трекеров
 DOMAIN-SUFFIX,vk-analytics.ru,REJECT
 DOMAIN-SUFFIX,apptracer.ru,REJECT
 DOMAIN-SUFFIX,ads.vk.com,REJECT
@@ -21,9 +21,9 @@ DOMAIN,r.mradx.net,REJECT
 DOMAIN,trace-flow.ru,REJECT
 
 [URL Rewrite]
-^https?:\/\/api\.vk\.(?:com|me)\/method\/ads\..* - reject-200
-^https?:\/\/api\.vk\.(?:com|me)\/method\/promotedPost\..* - reject-200
+^https?:\/\/api\.vk\.(?:com|me|ru)\/method\/ads\..* - reject-200
+^https?:\/\/api\.vk\.(?:com|me|ru)\/method\/promotedPost\..* - reject-200
 
 [MITM]
-# Перехватываем публичный API VK, пропускаем напрямую пинг eh.vk.com, сокеты и медиа CDN
-hostname = %APPEND% api.vk.com, api.vk.me, *.vk.com, -internal.api.vk.ru, -eh.vk.com, -persiq.vk.com, -lp.vk.com, -queue.vk.com, -queuev4.vk.ru, -im.vk.com, -*.userapi.com, -*.vkuserphoto.ru, -*.vkuseraudio.net, -*.mycdn.me
+# Перехватываем API домены VK, включая api.vk.ru
+hostname = %APPEND% api.vk.com, api.vk.me, api.vk.ru, internal.api.vk.ru, *.vk.com, *.vk.ru, -eh.vk.com, -persiq.vk.com, -lp.vk.com, -queue.vk.com, -queuev4.vk.ru, -im.vk.com, -*.userapi.com, -*.vkuserphoto.ru, -*.vkuseraudio.net, -*.mycdn.me
