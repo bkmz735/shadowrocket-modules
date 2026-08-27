@@ -2,11 +2,11 @@
 #!desc=Блокировка рекламы, баннеров и фильтр объявлений по стоп-словам в Avito для iOS.
 #!category=AdBlock
 
+#!arguments=keywords:такси|вахта|курьер
+#!arguments-desc=keywords:Стоп-слова для скрытия объявлений (разделитель | или запятая)
+
 [Script]
-# ====================================================================================================
-# ✍️ СТОП-СЛОВА ДЛЯ ФИЛЬТРАЦИИ ОБЪЯВЛЕНИЙ (РЕДАКТИРУЙТЕ В КАВЫЧКАХ argument="..." НИЖЕ ЧЕРЕЗ ЗАПЯТУЮ)
-# ====================================================================================================
-Avito_AdBlock = type=http-response,pattern=^https?:\/\/app\.avito\.ru\/api\/\d+\/(main\/items|items|widget\/itemsCarouselWidget),requires-body=1,max-size=0,argument="курьер,такси,таксист,вахта,доставка,яндекс про,яндекс еда,самокат,сборщик,комплектовщик,грузчик",script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito_cleaner.js
+Avito_AdBlock = type=http-response,pattern=^https?:\/\/app\.avito\.ru\/api\/\d+\/(main\/items|items|widget\/itemsCarouselWidget),requires-body=1,max-size=0,argument={{{keywords}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito_cleaner.js
 
 [Rule]
 # Аналитика, трекеры и рекламные биржи
