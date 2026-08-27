@@ -1,6 +1,6 @@
 # 🚀 Shadowrocket iOS Modules Collection
 
-Коллекция специализированных модулей и инструментов для **Shadowrocket (iOS)**: вырезание рекламы, умная фильтрация контента и сниффинг трафика.
+Коллекция специализированных модулей и инструментов для **Shadowrocket (iOS)**: вырезание рекламы и умная фильтрация контента.
 
 ---
 
@@ -8,8 +8,7 @@
 
 | Приложение / Сервис | Описание | Ссылка на установку (в 1 клик) | Документация |
 | :--- | :--- | :--- | :--- |
-| **GetContact** | Блокировка всей рекламы, промо-поп-апов и аналитики | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact-noads.sgmodule) | [Документация](modules/getcontact/README.md) |
-| **Universal Sniffer** | Универсальный сниффер и инспектор HTTP(S) трафика | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal-sniffer.sgmodule) | [Документация](modules/sniffer/README.md) |
+| **GetContact** | DNS-Блокировка рекламы, аналитики и трекеров | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact-noads.sgmodule) | [Документация](modules/getcontact/README.md) |
 | **Avito (Авито)** | Блокировка рекламы, промо-блоков и фильтрация объявлений | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito-noads.sgmodule) | [Документация](modules/avito/README.md) |
 
 ---
@@ -35,15 +34,10 @@
 ├── modules/
 │   ├── getcontact/                # Модуль для GetContact (iOS/Android)
 │   │   ├── README.md
-│   │   ├── getcontact-noads.sgmodule
-│   │   └── getcontact_cleaner.js
-│   ├── avito/                     # Модуль для Avito iOS
-│   │   ├── README.md
-│   │   ├── avito-noads.sgmodule
-│   │   └── avito_cleaner.js
-│   └── sniffer/                   # Универсальный сниффер
+│   │   └── getcontact-noads.sgmodule
+│   └── avito/                     # Модуль для Avito iOS
 │       ├── README.md
-│       ├── universal-sniffer.sgmodule
-│       └── universal_sniffer.js
+│       ├── avito-noads.sgmodule
+│       └── avito_cleaner.js
 └── README.md                      # Главный каталог
 ```
