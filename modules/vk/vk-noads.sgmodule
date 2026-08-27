@@ -1,5 +1,5 @@
 #!name=VK NoAds & Clean Feed
-#!desc=Полная блокировка рекламы, промо-постов и трекеров в VK (ВКонтакте) на iOS через Shadowrocket. Без сбоев сети и с 100% поддержкой соединения.
+#!desc=Полная блокировка рекламы, промо-постов, трекеров и телеметрии в VK (ВКонтакте) на iOS через Shadowrocket. Без ложных срабатываний сети.
 #!category=AdBlock
 
 [Script]
@@ -7,13 +7,17 @@
 VK_Cleaner = type=http-response,pattern=^https?:\/\/(?:api\.vk\.com|api\.vk\.me)\/method\/(?:newsfeed\.get|feed\.get|execute|video\.get|recommendations).*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_cleaner.js
 
 [Rule]
-# Блокировка рекламы и трекеров, не влияющих на проверку соединения (Reachability)
-DOMAIN-SUFFIX,stats.vk-analytics.ru,REJECT
+# Блокировка рекламы, аналитики и трекеров (без блокировки пингов связи)
 DOMAIN-SUFFIX,vk-analytics.ru,REJECT
+DOMAIN-SUFFIX,apptracer.ru,REJECT
 DOMAIN-SUFFIX,ads.vk.com,REJECT
 DOMAIN-SUFFIX,mytarget.com,REJECT
 DOMAIN-SUFFIX,target.my.com,REJECT
+DOMAIN,sdk.mail.ru,REJECT
+DOMAIN,rv.mail.ru,REJECT
+DOMAIN,clientapi.mail.ru,REJECT
 DOMAIN,ad.mail.ru,REJECT
+DOMAIN,r.mradx.net,REJECT
 DOMAIN,trace-flow.ru,REJECT
 
 [URL Rewrite]
@@ -21,5 +25,5 @@ DOMAIN,trace-flow.ru,REJECT
 ^https?:\/\/api\.vk\.(?:com|me)\/method\/promotedPost\..* - reject-200
 
 [MITM]
-# Перехватываем только публичный API VK, исключая пинги сети (eh/internal), сокеты и медиа CDN
+# Перехватываем публичный API VK, пропускаем напрямую пинг eh.vk.com, сокеты и медиа CDN
 hostname = %APPEND% api.vk.com, api.vk.me, *.vk.com, -internal.api.vk.ru, -eh.vk.com, -persiq.vk.com, -lp.vk.com, -queue.vk.com, -queuev4.vk.ru, -im.vk.com, -*.userapi.com, -*.vkuserphoto.ru, -*.vkuseraudio.net, -*.mycdn.me

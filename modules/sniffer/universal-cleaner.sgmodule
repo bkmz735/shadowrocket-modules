@@ -11,8 +11,11 @@ Universal_Cleaner = type=http-response,pattern=^https?:\/\/(?!.*(?:\.png|\.jpg|\
 [Rule]
 DOMAIN,sdk.mail.ru,REJECT
 DOMAIN,rv.mail.ru,REJECT
-DOMAIN,eh.vk.com,REJECT
+DOMAIN,clientapi.mail.ru,REJECT
+DOMAIN,ad.mail.ru,REJECT
+DOMAIN,r.mradx.net,REJECT
 DOMAIN,trace-flow.ru,REJECT
+DOMAIN-SUFFIX,apptracer.ru,REJECT
 DOMAIN-SUFFIX,adriver.ru,REJECT
 DOMAIN-SUFFIX,buzzoola.com,REJECT
 DOMAIN-SUFFIX,appmetrica.yandex.net,REJECT
