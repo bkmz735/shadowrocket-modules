@@ -1,16 +1,30 @@
 ﻿/**
  * Скрипт очистки выдачи Avito API (app.avito.ru)
  * 1. Вырезает баннеры, рекламу и промо-виджеты.
- * 2. Фильтрует любые объявления по стоп-словам из argument="..."
+ * 2. Фильтрует объявления по стоп-словам ТОЛЬКО В ЗАГОЛОВКАХ.
  * 3. Логирует статистику и статус стоп-слов.
  */
 
 let blockedKeywords = [];
 
-if (typeof $argument === 'string' && $argument.trim() !== '') {
-    let raw = $argument.replace(/^["'{]+|["'}]+$/g, '').trim();
-    if (raw !== '' && raw !== 'keywords' && raw !== '{keywords}') {
-        blockedKeywords = raw.split(/[,;|]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+if (typeof $argument !== 'undefined' && $argument !== null) {
+    let rawArg = String($argument).trim();
+    
+    if (rawArg.startsWith('{') && rawArg.endsWith('}')) {
+        try {
+            let parsed = JSON.parse(rawArg);
+            if (parsed.keywords) rawArg = String(parsed.keywords);
+        } catch (e) {}
+    }
+    
+    if (rawArg.toLowerCase().startsWith('keywords:') || rawArg.toLowerCase().startsWith('keywords=')) {
+        rawArg = rawArg.substring(rawArg.indexOf(':') + 1 || rawArg.indexOf('=') + 1);
+    }
+    
+    rawArg = rawArg.replace(/^["'{]+|["'}]+$/g, '').trim();
+
+    if (rawArg !== '' && rawArg !== '{keywords}' && rawArg !== '{{{keywords}}}') {
+        blockedKeywords = rawArg.split(/[,;|]/).map(s => s.trim().toLowerCase()).filter(Boolean);
     }
 }
 
@@ -65,16 +79,26 @@ try {
         return false;
     };
 
-    // 100% глубокий поиск стоп-слов во всем объекте карточки
+    // Поиск стоп-слов СТРОГО в заголовках объявлений
     const containsBlockedKeyword = (item) => {
         if (!blockedKeywords || blockedKeywords.length === 0) return false;
 
-        const itemStr = JSON.stringify(item).toLowerCase();
+        // Собираем все возможные варианты расположения заголовка
+        let titleFields = [];
+        if (typeof item.title === 'string') titleFields.push(item.title);
+        if (item.value) {
+            if (typeof item.value.title === 'string') titleFields.push(item.value.title);
+            if (typeof item.value.header === 'string') titleFields.push(item.value.header);
+        }
+
+        // Если заголовка нет вообще, пропускаем фильтр
+        if (titleFields.length === 0) return false;
+
+        const titleText = titleFields.join(' ').toLowerCase();
 
         for (let keyword of blockedKeywords) {
-            if (keyword && itemStr.includes(keyword)) {
-                let title = item.title || (item.value && item.value.title) || (item.value && item.value.header) || keyword;
-                stats.removedTitles.push(`"${title}" [по слову: ${keyword}]`);
+            if (keyword && titleText.includes(keyword)) {
+                stats.removedTitles.push(`"${titleFields[0]}" [по слову: ${keyword}]`);
                 return true;
             }
         }
@@ -128,7 +152,7 @@ try {
     }
 
     console.log(`\n🛡️ [Avito Cleaner] Статистика:`);
-    console.log(`   Стоп-слова: ` + (blockedKeywords.length ? `[${blockedKeywords.join(', ')}]` : `НЕ ЗАДАНЫ`));
+    console.log(`   Стоп-слова (только заголовки): ` + (blockedKeywords.length ? `[${blockedKeywords.join(', ')}]` : `НЕ ЗАДАНЫ`));
     console.log(`   Всего элементов: ${stats.total} | Удалено рекламы: ${stats.adsRemoved} | Удалено по стоп-словам: ${stats.keywordsRemoved}`);
     if (stats.removedTitles.length > 0) {
         console.log(`   Вырезано: ${stats.removedTitles.slice(0, 5).join('; ')}`);
