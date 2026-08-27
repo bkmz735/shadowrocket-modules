@@ -1,0 +1,11 @@
+#!name=GetContact Local Sniffer
+#!desc=Локальный сниффер специально для GetContact. Позволяет проверить, есть ли на их серверах жесткий SSL Pinning, и вывести структуру ответов.
+#!category=Sniffer
+
+[Script]
+# Скрипт для инспекции структуры JSON от GetContact
+GetContact_Sniffer = type=http-response,pattern=^https?:\/\/(?:api|premium)\.getcontact\.com\/.*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact_sniffer.js
+
+[MITM]
+# Перехватываем ТОЛЬКО домены GetContact, чтобы не сломать остальную систему
+hostname = %APPEND% api.getcontact.com, premium.getcontact.com

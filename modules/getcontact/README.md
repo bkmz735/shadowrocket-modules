@@ -1,16 +1,13 @@
-# 📞 GetContact DNS AdBlock
+# 📞 GetContact DNS AdBlock & Tools
 
 Облегченный модуль для GetContact (iOS/Android).
-В последних версиях GetContact использует строгий **SSL Pinning**, что делает невозможным прямое редактирование JSON (MitM). 
-Поэтому данный модуль работает на уровне DNS-блокировок.
 
 ---
 
-## 📦 Что блокирует:
-Отсекает загрузку рекламы от сторонних сетей (AdMob, AppLovin, UnityAds) и отключает системы аналитики (Adjust, AppsFlyer).
+## 📦 Доступные модули:
 
----
+### 1. [GetContact DNS AdBlock](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact-noads.sgmodule)
+Отсекает загрузку рекламы от сторонних сетей (AdMob, AppLovin, UnityAds) и отключает системы аналитики (Adjust, AppsFlyer) на уровне DNS. Без MitM.
 
-## 🚀 Установка
-Скопируйте ссылку на модуль и вставьте в **Shadowrocket** -> **Modules (Модули)** -> **`+`**:
-[Ссылка на установку (в 1 клик)](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact-noads.sgmodule)
+### 2. [GetContact Local Sniffer](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact-sniffer.sgmodule)
+Локальный сниффер структуры JSON-ответов. Создан исключительно для диагностики и проверки наличия SSL Pinning на серверах `api.getcontact.com`.
