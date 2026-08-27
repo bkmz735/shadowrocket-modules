@@ -1,27 +1,25 @@
 #!name=VK NoAds & Clean Feed
-#!desc=Полная блокировка рекламы, промо-постов, трекеров и телеметрии в VK (ВКонтакте) на iOS через Shadowrocket.
+#!desc=Полная блокировка рекламы, промо-постов и трекеров в VK (ВКонтакте) на iOS через Shadowrocket. Без сбоев сети и с 100% поддержкой соединения.
 #!category=AdBlock
 
 [Script]
-# Фильтрация рекламы в лентах VK
-VK_Cleaner = type=http-response,pattern=^https?:\/\/(?:api\.vk\.com|api\.vk\.me|internal\.api\.vk\.ru)\/method\/(?:newsfeed\.get|feed\.get|execute|video\.get|recommendations).*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_cleaner.js
+# Очистка рекламы в ленте VK API
+VK_Cleaner = type=http-response,pattern=^https?:\/\/(?:api\.vk\.com|api\.vk\.me)\/method\/(?:newsfeed\.get|feed\.get|execute|video\.get|recommendations).*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk_cleaner.js
 
 [Rule]
-# Телеметрия, трекеры и реклама VK / Mail.ru из логов
-DOMAIN,sdk.mail.ru,REJECT
-DOMAIN,rv.mail.ru,REJECT
-DOMAIN,eh.vk.com,REJECT
-DOMAIN,trace-flow.ru,REJECT
+# Блокировка рекламы и трекеров, не влияющих на проверку соединения (Reachability)
 DOMAIN-SUFFIX,stats.vk-analytics.ru,REJECT
 DOMAIN-SUFFIX,vk-analytics.ru,REJECT
 DOMAIN-SUFFIX,ads.vk.com,REJECT
 DOMAIN-SUFFIX,mytarget.com,REJECT
 DOMAIN-SUFFIX,target.my.com,REJECT
+DOMAIN,ad.mail.ru,REJECT
+DOMAIN,trace-flow.ru,REJECT
 
 [URL Rewrite]
-# Блокировка вызовов рекламных баннеров
 ^https?:\/\/api\.vk\.(?:com|me)\/method\/ads\..* - reject-200
 ^https?:\/\/api\.vk\.(?:com|me)\/method\/promotedPost\..* - reject-200
 
 [MITM]
-hostname = %APPEND% api.vk.com, api.vk.me, internal.api.vk.ru, *.vk.com, -lp.vk.com, -queue.vk.com, -queuev4.vk.ru, -im.vk.com, -eh.vk.com, -persiq.vk.com, -*.userapi.com, -*.vkuserphoto.ru, -*.vkuseraudio.net, -*.mycdn.me
+# Перехватываем только публичный API VK, исключая пинги сети (eh/internal), сокеты и медиа CDN
+hostname = %APPEND% api.vk.com, api.vk.me, *.vk.com, -internal.api.vk.ru, -eh.vk.com, -persiq.vk.com, -lp.vk.com, -queue.vk.com, -queuev4.vk.ru, -im.vk.com, -*.userapi.com, -*.vkuserphoto.ru, -*.vkuseraudio.net, -*.mycdn.me
