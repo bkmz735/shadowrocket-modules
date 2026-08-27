@@ -1,5 +1,5 @@
 /**
- * VK iOS Ad, Banner, Promo-Widget & Spam Cleaner Script for Shadowrocket
+ * VK iOS Aggressive Ad, Banner, Promo-Widget & Spam Cleaner Script for Shadowrocket
  * GitHub: https://github.com/bkmz735/shadowrocket-modules
  */
 
@@ -27,16 +27,13 @@
 
                 const itemType = (item.type || item.post_type || item.block_type || item.template || item.layout || '').toString().toLowerCase();
 
-                // 1. Проверка типов на promo_widget, banner, ad, commercial
-                if (itemType.includes('promo') || itemType.includes('ad') || itemType.includes('banner') || itemType.includes('commercial')) {
-                    return true;
-                }
-                if (['app', 'authors_rec', 'recommended', 'recommended_groups', 'suggested'].includes(itemType)) {
+                // 1. Проверка типов на рекламу, промо, баннеры, рекомендации
+                if (['ads', 'promoted', 'app', 'authors_rec', 'recommended', 'recommended_groups', 'suggested', 'ads_easy', 'promo', 'commercial', 'banner', 'widget_ad', 'promo_widget', 'widget_promo', 'promo_block'].includes(itemType) || itemType.includes('promo') || itemType.includes('banner')) {
                     return true;
                 }
 
-                // 2. Наличие полей промо-виджетов и рекламных полей
-                if (item.ads || item.ad_data || item.promoted_post || item.ads_title || item.ad_marker || item.ad_block || item.promo_widget || item.promoWidget || item.widget_promo || item.promo_block || item.promo_banner) {
+                // 2. Наличие полей маркировки VK рекламы
+                if (item.marked_as_ads === 1 || item.marked_as_ads === true || item.ads || item.ad_data || item.promoted_post || item.ads_title || item.ad_marker || item.ad_block || item.promo_widget || item.promoWidget || item.widget_promo || item.promo_block || item.promo_banner) {
                     return true;
                 }
 
@@ -47,7 +44,7 @@
 
                 // 4. Маркеры маркированной рекламы и промо-виджетов в строке
                 const str = JSON.stringify(item).toLowerCase();
-                if (str.includes('"is_ad":true') || str.includes('"is_promoted":true') || str.includes('"ad_data"') || str.includes('marked_as_ads":1') || str.includes('promo_widget') || str.includes('promowidget')) {
+                if (str.includes('"is_ad":true') || str.includes('"is_promoted":true') || str.includes('"ad_data"') || str.includes('marked_as_ads":1') || str.includes('marked_as_ads":true') || str.includes('promo_widget') || str.includes('promowidget')) {
                     return true;
                 }
 
@@ -55,7 +52,7 @@
             }
 
             function cleanNode(node, depth = 0) {
-                if (!node || typeof node !== 'object' || depth > 10) return node;
+                if (!node || typeof node !== 'object' || depth > 12) return node;
 
                 if (Array.isArray(node)) {
                     const filtered = node.filter(item => {
@@ -87,7 +84,7 @@
             data = cleanNode(data);
 
             if (modified) {
-                console.log(`[VK CLEANER] ✂️ Removed ${removedCount} ad/banner/promo-widget items from VK response: ${url}`);
+                console.log(`[VK CLEANER] ✂️ Removed ${removedCount} ad/banner/promo/marked_as_ads items from VK response: ${url}`);
                 $done({ body: JSON.stringify(data) });
                 return;
             }

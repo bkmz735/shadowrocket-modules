@@ -1,5 +1,5 @@
 /**
- * VK iOS Traffic Inspector & Ad Detector for Shadowrocket
+ * VK iOS Traffic Inspector & Full Ad Sniffer for Shadowrocket
  * GitHub: https://github.com/bkmz735/shadowrocket-modules
  */
 
@@ -21,27 +21,46 @@
         if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
             const data = JSON.parse(trimmed);
 
-            console.log(`\n================== 🔵 [VK API INSPECTOR] ==================`);
+            console.log(`\n================== 🔍 [VK TRAFFIC SNIFFER] ==================`);
             console.log(`[URL]    : ${url}`);
             console.log(`[STATUS] : ${response.status}`);
 
             if (data.response) {
                 const resp = data.response;
-                if (resp.items && Array.isArray(resp.items)) {
-                    console.log(`📌 Found "response.items" Array (Length: ${resp.items.length})`);
-                    resp.items.slice(0, 5).forEach((item, idx) => {
-                        const itemType = item.type || item.post_type || item.post_source?.type || 'POST/ITEM';
-                        const isAd = item.ads || item.ad_data || item.type === 'ads' || item.type === 'promoted' || JSON.stringify(item).includes('promoted');
-                        console.log(`   [${idx}] Type: "${itemType}" ${isAd ? '🚨 (AD/PROMO DETECTED)' : ''}`);
-                    });
-                } else {
-                    console.log(`[RESP KEYS]: ${JSON.stringify(Object.keys(resp).slice(0, 10))}`);
+
+                function findArraysAndInspect(obj, path = '') {
+                    if (!obj || typeof obj !== 'object') return;
+
+                    if (Array.isArray(obj)) {
+                        console.log(`  📌 Array at "${path}" (Length: ${obj.length})`);
+                        obj.forEach((item, idx) => {
+                            if (item && typeof item === 'object') {
+                                const itemStr = JSON.stringify(item).toLowerCase();
+                                const type = item.type || item.post_type || item.block_type || 'N/A';
+                                const isAd = itemStr.includes('ad') || itemStr.includes('promo') || itemStr.includes('banner') || itemStr.includes('marked_as_ads');
+                                
+                                console.log(`     [${idx}] Type: "${type}" | Marked: ${isAd ? '🚨 AD/PROMO' : 'OK'}`);
+                                if (isAd) {
+                                    console.log(`        👉 Sample Keys: [${Object.keys(item).slice(0, 10).join(', ')}]`);
+                                    console.log(`        👉 Snippet: ${JSON.stringify(item).substring(0, 250)}...`);
+                                }
+                            }
+                        });
+                    } else {
+                        for (let k in obj) {
+                            if (Object.prototype.hasOwnProperty.call(obj, k) && typeof obj[k] === 'object') {
+                                findArraysAndInspect(obj[k], path ? `${path}.${k}` : k);
+                            }
+                        }
+                    }
                 }
+
+                findArraysAndInspect(resp);
             } else if (data.error) {
-                console.log(`❌ VK Error: ${JSON.stringify(data.error)}`);
+                console.log(`❌ VK API Error: ${JSON.stringify(data.error)}`);
             }
 
-            console.log(`===========================================================\n`);
+            console.log(`=============================================================\n`);
         }
     } catch (e) {}
 
