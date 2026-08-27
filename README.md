@@ -1,6 +1,6 @@
 # 🚀 Shadowrocket iOS Modules Collection
 
-Коллекция модулей, скриптов и правил для **Shadowrocket (iOS)**: блокировка рекламы, умная фильтрация контента, вырезание промо-постов и сниффинг трафика.
+Коллекция универсальных и специализированных модулей для **Shadowrocket (iOS)**: вырезание рекламы, умная фильтрация контента и сниффинг трафика.
 
 ---
 
@@ -8,11 +8,9 @@
 
 | Приложение / Сервис | Описание | Ссылка на установку (в 1 клик) | Документация |
 | :--- | :--- | :--- | :--- |
-| **VK (ВКонтакте)** | Удаление всей рекламы, промо-постов и трекеров в VK | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk-noads.sgmodule) | [Документация](modules/vk/README.md) |
-| **VK Sniffer** | Сниффинг API ВКонтакте без вылета чатов и VPN | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/vk/vk-sniffer.sgmodule) | [Документация](modules/vk/README.md) |
+| **Universal Cleaner** | Универсальная очистка JSON от рекламы, баннеров и спама | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal-cleaner.sgmodule) | [Документация](modules/sniffer/README.md) |
+| **Universal Sniffer** | Универсальный сниффер и инспектор HTTP(S) трафика | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal-sniffer.sgmodule) | [Документация](modules/sniffer/README.md) |
 | **Avito (Авито)** | Блокировка рекламы, промо-блоков и фильтрация объявлений | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito-noads.sgmodule) | [Документация](modules/avito/README.md) |
-| **Universal Sniffer** | Универсальный сниффинг и инспекция HTTP(S) трафика | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal-sniffer.sgmodule) | [Документация](modules/sniffer/README.md) |
-| **Universal Cleaner** | Универсальная очистка JSON от рекламы и спама | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal-cleaner.sgmodule) | [Документация](modules/sniffer/README.md) |
 
 ---
 
@@ -35,12 +33,6 @@
 
 ```text
 ├── modules/
-│   ├── vk/                        # Модули для VK iOS
-│   │   ├── README.md              # Инструкция по VK
-│   │   ├── vk-noads.sgmodule      # Блокировка рекламы VK
-│   │   ├── vk_cleaner.js          # Скрипт фильтрации VK
-│   │   ├── vk-sniffer.sgmodule    # Безопасный сниффер VK
-│   │   └── vk_sniffer.js          # Инспектор API VK
 │   ├── avito/                     # Модуль для Avito iOS
 │   │   ├── README.md
 │   │   ├── avito-noads.sgmodule
