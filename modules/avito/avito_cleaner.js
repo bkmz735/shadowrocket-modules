@@ -1,35 +1,28 @@
 ﻿/**
  * Скрипт очистки выдачи Avito API (app.avito.ru)
- * 1. Всегда вырезает баннеры, рекламу и промо-виджеты.
- * 2. Фильтрует объявления по стоп-словам из argument.
- * 3. Логирует статистику и отладку аргументов.
+ * 1. Вырезает баннеры, рекламу и промо-виджеты.
+ * 2. Фильтрует любые объявления по стоп-словам из argument (ищет совпадения по всему объекту объявления).
+ * 3. Логирует статистику и статус стоп-слов.
  */
 
 let blockedKeywords = [];
 
-// Всеядный парсер аргументов для любых версий Shadowrocket
 if (typeof $argument !== 'undefined' && $argument !== null) {
     let rawArg = String($argument).trim();
     
-    // Если Shadowrocket передал JSON
     if (rawArg.startsWith('{') && rawArg.endsWith('}')) {
         try {
             let parsed = JSON.parse(rawArg);
             if (parsed.keywords) rawArg = String(parsed.keywords);
-        } catch (e) {
-            // Не JSON, продолжаем как строку
-        }
+        } catch (e) {}
     }
     
-    // Если передано как "keywords:значение" или "keywords=значение"
     if (rawArg.toLowerCase().startsWith('keywords:') || rawArg.toLowerCase().startsWith('keywords=')) {
         rawArg = rawArg.substring(rawArg.indexOf(':') + 1 || rawArg.indexOf('=') + 1);
     }
     
-    // Очищаем от остаточных фигурных скобок или кавычек
     rawArg = rawArg.replace(/^["'{]+|["'}]+$/g, '').trim();
 
-    // Если значение не пустое и не равно заглушке
     if (rawArg !== '' && rawArg !== '{keywords}') {
         blockedKeywords = rawArg.split(/[,;|]/).map(s => s.trim().toLowerCase()).filter(Boolean);
     }
@@ -86,25 +79,18 @@ try {
         return false;
     };
 
+    // 100% глубокий поиск стоп-слов во всем объекте карточки (заголовок, описание, параметры, подзаголовок)
     const containsBlockedKeyword = (item) => {
         if (!blockedKeywords || blockedKeywords.length === 0) return false;
 
-        let title = '';
-        let desc = '';
+        const itemStr = JSON.stringify(item).toLowerCase();
 
-        if (typeof item.title === 'string') title = item.title;
-        else if (item.value && typeof item.value.title === 'string') title = item.value.title;
-
-        if (typeof item.description === 'string') desc = item.description;
-        else if (typeof item.snippet === 'string') desc = item.snippet;
-        else if (item.value && typeof item.value.description === 'string') desc = item.value.description;
-
-        const fullText = (title + ' ' + desc).toLowerCase();
-
-        const match = blockedKeywords.find(k => fullText.includes(k));
-        if (match) {
-            stats.removedTitles.push(`"${title || match}" [по слову: ${match}]`);
-            return true;
+        for (let keyword of blockedKeywords) {
+            if (keyword && itemStr.includes(keyword)) {
+                let title = item.title || (item.value && item.value.title) || (item.value && item.value.header) || keyword;
+                stats.removedTitles.push(`"${title}" [по слову: ${keyword}]`);
+                return true;
+            }
         }
         return false;
     };
@@ -155,15 +141,13 @@ try {
         cleanObject(obj);
     }
 
-    if (stats.adsRemoved > 0 || stats.keywordsRemoved > 0) {
-        console.log(`\n🛡️ [Avito Cleaner] Успешно обработано:`);
-        console.log(`   Активные стоп-слова: [${blockedKeywords.join(', ')}]`);
-        console.log(`   Всего элементов: ${stats.total} | Удалено рекламы: ${stats.adsRemoved} | Удалено по стоп-словам: ${stats.keywordsRemoved}`);
-        if (stats.removedTitles.length > 0) {
-            console.log(`   Вырезано: ${stats.removedTitles.slice(0, 5).join('; ')}`);
-        }
-        console.log(``);
+    console.log(`\n🛡️ [Avito Cleaner] Статистика:`);
+    console.log(`   Стоп-слова: ` + (blockedKeywords.length ? `[${blockedKeywords.join(', ')}]` : `НЕ ЗАДАНЫ (список пуст)`));
+    console.log(`   Всего элементов: ${stats.total} | Удалено рекламы: ${stats.adsRemoved} | Удалено по стоп-словам: ${stats.keywordsRemoved}`);
+    if (stats.removedTitles.length > 0) {
+        console.log(`   Вырезано: ${stats.removedTitles.slice(0, 5).join('; ')}`);
     }
+    console.log(``);
 
     $done({ body: JSON.stringify(obj) });
 } catch (e) {
