@@ -1,26 +1,22 @@
-﻿/**
- * Скрипт очистки выдачи Avito API (app.avito.ru)
- * 1. Вырезает баннеры, рекламу и промо-виджеты.
- * 2. Фильтрует объявления по стоп-словам ТОЛЬКО В ЗАГОЛОВКАХ.
- * 3. Логирует статистику и статус стоп-слов.
+/**
+ * Deep Cleaner Script for Avito API
+ * 1. Убирает продвигаемые объявления, VIP, баннеры
+ * 2. Глубоко ищет ключевые слова (в заголовках, описаниях, сниппетах)
  */
 
 let blockedKeywords = [];
 
 if (typeof $argument !== 'undefined' && $argument !== null) {
     let rawArg = String($argument).trim();
-    
     if (rawArg.startsWith('{') && rawArg.endsWith('}')) {
         try {
             let parsed = JSON.parse(rawArg);
             if (parsed.keywords) rawArg = String(parsed.keywords);
         } catch (e) {}
     }
-    
     if (rawArg.toLowerCase().startsWith('keywords:') || rawArg.toLowerCase().startsWith('keywords=')) {
         rawArg = rawArg.substring(rawArg.indexOf(':') + 1 || rawArg.indexOf('=') + 1);
     }
-    
     rawArg = rawArg.replace(/^["'{]+|["'}]+$/g, '').trim();
 
     if (rawArg !== '' && rawArg !== '{keywords}' && rawArg !== '{{{keywords}}}') {
@@ -29,10 +25,7 @@ if (typeof $argument !== 'undefined' && $argument !== null) {
 }
 
 let body = $response.body;
-
-if (!body) {
-    $done({});
-}
+if (!body) $done({});
 
 try {
     let obj = JSON.parse(body);
@@ -49,56 +42,56 @@ try {
 
         const type = (item.type || item.itemType || item.layout || item.kind || item.component || '').toLowerCase();
         const adTypes = [
-            'banner',
-            'commercial',
-            'commercial_banner',
-            'ad',
-            'direct',
-            'yandex_direct',
-            'promo',
-            'vas',
-            'stories',
-            'advertising',
-            'brand',
-            'avitosales',
-            'sales'
+            'banner', 'commercial', 'commercial_banner', 'ad', 'direct', 
+            'yandex_direct', 'promo', 'vas', 'advertising', 'brand', 
+            'avitosales', 'sales', 'vip'
         ];
-        
         if (adTypes.includes(type)) return true;
 
-        if (item.isAd === true || item.isBanner === true || item.isCommercial === true || item.isPromo === true) return true;
-        if (item.advertising || item.adDetails || item.banner || item.commercial) return true;
+        if (item.isAd || item.isBanner || item.isCommercial || item.isPromo || item.advertising || item.adDetails) return true;
 
         if (item.value && typeof item.value === 'object') {
             const valType = (item.value.type || item.value.layout || '').toLowerCase();
             if (adTypes.includes(valType)) return true;
-            if (item.value.isAd === true || item.value.isBanner === true || item.value.isCommercial === true) return true;
-            if (item.value.advertising || item.value.adDetails || item.value.banner) return true;
+            if (item.value.isAd || item.value.isBanner || item.value.isCommercial || item.value.advertising) return true;
+            // Пропускаем "VIP" бейджи на объявлениях или удаляем само объявление? 
+            // Иногда item.value.badge.type == 'vip'
         }
-
         return false;
     };
 
-    // Поиск стоп-слов СТРОГО в заголовках объявлений
     const containsBlockedKeyword = (item) => {
         if (!blockedKeywords || blockedKeywords.length === 0) return false;
 
-        // Собираем все возможные варианты расположения заголовка
-        let titleFields = [];
-        if (typeof item.title === 'string') titleFields.push(item.title);
-        if (item.value) {
-            if (typeof item.value.title === 'string') titleFields.push(item.value.title);
-            if (typeof item.value.header === 'string') titleFields.push(item.value.header);
-        }
+        let textFields = [];
+        // Рекурсивная функция для извлечения всех текстов (title, description, snippet и т.д.)
+        const extractText = (node, depth = 0) => {
+            if (!node || typeof node !== 'object' || depth > 10) return;
+            const keysToCheck = ['title', 'header', 'description', 'text', 'subtitle', 'snippet', 'shortDescription'];
+            
+            for (let k of keysToCheck) {
+                if (typeof node[k] === 'string') textFields.push(node[k]);
+            }
 
-        // Если заголовка нет вообще, пропускаем фильтр
-        if (titleFields.length === 0) return false;
+            if (Array.isArray(node)) {
+                for (let i = 0; i < node.length; i++) extractText(node[i], depth + 1);
+            } else {
+                for (let k in node) {
+                    if (node[k] && typeof node[k] === 'object') extractText(node[k], depth + 1);
+                }
+            }
+        };
 
-        const titleText = titleFields.join(' ').toLowerCase();
+        extractText(item);
+        
+        if (textFields.length === 0) return false;
+        
+        const fullText = textFields.join(' ').toLowerCase();
 
         for (let keyword of blockedKeywords) {
-            if (keyword && titleText.includes(keyword)) {
-                stats.removedTitles.push(`"${titleFields[0]}" [по слову: ${keyword}]`);
+            if (keyword && fullText.includes(keyword)) {
+                let sampleTitle = item.title || (item.value && item.value.title) || textFields[0] || "No Title";
+                stats.removedTitles.push(`"${sampleTitle}" [Match: ${keyword}]`);
                 return true;
             }
         }
@@ -123,43 +116,43 @@ try {
         return arr.filter(shouldKeepItem);
     };
 
-    const cleanObject = (root) => {
-        if (!root || typeof root !== 'object') return;
+    // Рекурсивный проход по всему дереву и фильтрация всех массивов (item.value.items, result.items и т.д.)
+    const cleanObject = (root, depth = 0) => {
+        if (!root || typeof root !== 'object' || depth > 20) return;
 
         if (Array.isArray(root)) {
-            return filterArray(root).map(cleanObject);
+            // Если это корень и он массив
+            return filterArray(root).forEach(el => cleanObject(el, depth + 1));
         }
 
         for (let key in root) {
             if (Array.isArray(root[key])) {
                 root[key] = filterArray(root[key]);
+                root[key].forEach(el => cleanObject(el, depth + 1));
             } else if (typeof root[key] === 'object') {
-                cleanObject(root[key]);
+                cleanObject(root[key], depth + 1);
             }
         }
     };
 
+    // Запускаем очистку
     if (obj.result) {
-        if (Array.isArray(obj.result.items)) obj.result.items = filterArray(obj.result.items);
-        if (Array.isArray(obj.result.sections)) obj.result.sections = filterArray(obj.result.sections);
-        if (Array.isArray(obj.result.widgets)) obj.result.widgets = filterArray(obj.result.widgets);
         cleanObject(obj.result);
-    } else if (Array.isArray(obj.items)) {
-        obj.items = filterArray(obj.items);
-        cleanObject(obj);
     } else {
         cleanObject(obj);
     }
 
-    console.log(`\n🛡️ [Avito Cleaner] Статистика:`);
-    console.log(`   Стоп-слова (только заголовки): ` + (blockedKeywords.length ? `[${blockedKeywords.join(', ')}]` : `НЕ ЗАДАНЫ`));
-    console.log(`   Всего элементов: ${stats.total} | Удалено рекламы: ${stats.adsRemoved} | Удалено по стоп-словам: ${stats.keywordsRemoved}`);
+    console.log(`\n========================================`);
+    console.log(`[Avito Deep Cleaner] 🔎`);
+    console.log(`Keywords: ` + (blockedKeywords.length ? `[${blockedKeywords.join(', ')}]` : `NONE`));
+    console.log(`Scanned: ${stats.total} items | Ads Removed: ${stats.adsRemoved} | Keyword Removed: ${stats.keywordsRemoved}`);
     if (stats.removedTitles.length > 0) {
-        console.log(`   Вырезано: ${stats.removedTitles.slice(0, 5).join('; ')}`);
+        console.log(`Filtered: ${stats.removedTitles.slice(0, 5).join('; ')}`);
     }
-    console.log(``);
+    console.log(`========================================\n`);
 
     $done({ body: JSON.stringify(obj) });
 } catch (e) {
+    console.log(`[Avito Cleaner] Error: ${e}`);
     $done({});
 }

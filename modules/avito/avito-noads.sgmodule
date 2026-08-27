@@ -1,36 +1,32 @@
-﻿#!name=Avito NoAds & Filter
-#!desc=Блокировка рекламы, баннеров и фильтр объявлений по стоп-словам в Avito для iOS.
+#!name=Avito NoAds & Deep Filter
+#!desc=Блокировка рекламы, баннеров и продвигаемых объявлений на Avito (iOS). Включает умный фильтр по словам (работает в поиске и каталоге).
 #!category=AdBlock
 
-#!arguments=keywords:такси|вахта|курьер
-#!arguments-desc=keywords:Стоп-слова для скрытия объявлений (разделитель | или запятая)
+#!arguments=keywords:бпла|дрон|продам
+#!arguments-desc=keywords:Ключевые слова для скрытия объявлений (разделитель | или , )
 
 [Script]
-Avito_AdBlock = type=http-response,pattern=^https?:\/\/app\.avito\.ru\/api\/\d+\/(main\/items|items|widget\/itemsCarouselWidget),requires-body=1,max-size=0,argument={{{keywords}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito_cleaner.js
+# Расширенный паттерн: перехватывает поиск, каталог, рекомендации и главную страницу
+Avito_AdBlock = type=http-response,pattern=^https?:\/\/app\.avito\.ru\/api\/.*(?:items|catalog|search|recommendations|widgets).*$,requires-body=1,max-size=524288,argument={{{keywords}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito_cleaner.js
 
 [Rule]
-# Аналитика, трекеры и рекламные биржи
+# Аналитика и трекеры
 DOMAIN-SUFFIX,adriver.ru,REJECT
 DOMAIN-SUFFIX,buzzoola.com,REJECT
 DOMAIN-SUFFIX,appmetrica.yandex.net,REJECT
 DOMAIN-SUFFIX,mobile.yandex.net,REJECT
 DOMAIN-SUFFIX,an.yandex.ru,REJECT
 DOMAIN-SUFFIX,adjust.com,REJECT
-DOMAIN-SUFFIX,adjust.net.in,REJECT
 DOMAIN-SUFFIX,adjust.world,REJECT
 DOMAIN-SUFFIX,app-analytics-services.com,REJECT
-DOMAIN-SUFFIX,vk-analytics.ru,REJECT
-DOMAIN-SUFFIX,uxfeedback.ru,REJECT
-DOMAIN-SUFFIX,mytarget.com,REJECT
-DOMAIN-SUFFIX,target.my.com,REJECT
 DOMAIN-SUFFIX,stats.avito.ru,REJECT
+DOMAIN-SUFFIX,vk-analytics.ru,REJECT
+DOMAIN-SUFFIX,mytarget.com,REJECT
 
 [URL Rewrite]
-# Блокировка встроенных рекламных аукционов и баннеров Авито
-^https?:\/\/app\.avito\.ru\/api\/\d+\/adv\/network\/banner - reject-200
-^https?:\/\/app\.avito\.ru\/api\/\d+\/items\/\d+\/banners - reject-200
-^https?:\/\/www\.avito\.ru\/web\/\d+\/adv\/network\/ - reject-200
-^https?:\/\/app\.avito\.ru\/clickstream\/events\/ - reject-200
+# Прямая блокировка рекламных баннеров
+^https?:\/\/app\.avito\.ru\/api\/.*\/adv\/network\/banner - reject-200
+^https?:\/\/app\.avito\.ru\/api\/.*\/items\/.*\/banners - reject-200
 
 [MITM]
 hostname = %APPEND% app.avito.ru, www.avito.ru, *.avito.ru
