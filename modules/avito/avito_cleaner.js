@@ -1,15 +1,38 @@
 ﻿/**
  * Скрипт очистки выдачи Avito API (app.avito.ru)
- * 1. Вырезает баннеры, рекламу и промо-виджеты.
- * 2. Фильтрует объявления по стоп-словам из argument="{keywords}".
- * 3. Логирует статистику удаленных элементов для контроля работы.
+ * 1. Всегда вырезает баннеры, рекламу и промо-виджеты.
+ * 2. Фильтрует объявления по стоп-словам из argument.
+ * 3. Логирует статистику и отладку аргументов.
  */
 
 let blockedKeywords = [];
 
-if (typeof $argument === 'string' && $argument.trim() !== '' && !$argument.includes('{keywords}')) {
-    // Поддерживаем разделители |, запятую , и точку с запятой ;
-    blockedKeywords = $argument.split(/[,;|]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+// Всеядный парсер аргументов для любых версий Shadowrocket
+if (typeof $argument !== 'undefined' && $argument !== null) {
+    let rawArg = String($argument).trim();
+    
+    // Если Shadowrocket передал JSON
+    if (rawArg.startsWith('{') && rawArg.endsWith('}')) {
+        try {
+            let parsed = JSON.parse(rawArg);
+            if (parsed.keywords) rawArg = String(parsed.keywords);
+        } catch (e) {
+            // Не JSON, продолжаем как строку
+        }
+    }
+    
+    // Если передано как "keywords:значение" или "keywords=значение"
+    if (rawArg.toLowerCase().startsWith('keywords:') || rawArg.toLowerCase().startsWith('keywords=')) {
+        rawArg = rawArg.substring(rawArg.indexOf(':') + 1 || rawArg.indexOf('=') + 1);
+    }
+    
+    // Очищаем от остаточных фигурных скобок или кавычек
+    rawArg = rawArg.replace(/^["'{]+|["'}]+$/g, '').trim();
+
+    // Если значение не пустое и не равно заглушке
+    if (rawArg !== '' && rawArg !== '{keywords}') {
+        blockedKeywords = rawArg.split(/[,;|]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+    }
 }
 
 let body = $response.body;
@@ -134,6 +157,7 @@ try {
 
     if (stats.adsRemoved > 0 || stats.keywordsRemoved > 0) {
         console.log(`\n🛡️ [Avito Cleaner] Успешно обработано:`);
+        console.log(`   Активные стоп-слова: [${blockedKeywords.join(', ')}]`);
         console.log(`   Всего элементов: ${stats.total} | Удалено рекламы: ${stats.adsRemoved} | Удалено по стоп-словам: ${stats.keywordsRemoved}`);
         if (stats.removedTitles.length > 0) {
             console.log(`   Вырезано: ${stats.removedTitles.slice(0, 5).join('; ')}`);
