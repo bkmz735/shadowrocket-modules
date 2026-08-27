@@ -1,6 +1,6 @@
 # 🚀 Shadowrocket iOS Modules Collection
 
-Коллекция универсальных и специализированных модулей для **Shadowrocket (iOS)**: вырезание рекламы, умная фильтрация контента и сниффинг трафика.
+Коллекция специализированных модулей и инструментов для **Shadowrocket (iOS)**: вырезание рекламы, умная фильтрация контента и сниффинг трафика.
 
 ---
 
@@ -8,7 +8,6 @@
 
 | Приложение / Сервис | Описание | Ссылка на установку (в 1 клик) | Документация |
 | :--- | :--- | :--- | :--- |
-| **Universal Cleaner** | Универсальная очистка JSON от рекламы, баннеров и спама | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal-cleaner.sgmodule) | [Документация](modules/sniffer/README.md) |
 | **Universal Sniffer** | Универсальный сниффер и инспектор HTTP(S) трафика | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/sniffer/universal-sniffer.sgmodule) | [Документация](modules/sniffer/README.md) |
 | **Avito (Авито)** | Блокировка рекламы, промо-блоков и фильтрация объявлений | [Установить 📲](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito-noads.sgmodule) | [Документация](modules/avito/README.md) |
 
@@ -37,11 +36,9 @@
 │   │   ├── README.md
 │   │   ├── avito-noads.sgmodule
 │   │   └── avito_cleaner.js
-│   └── sniffer/                   # Универсальный сниффер и клинер
+│   └── sniffer/                   # Универсальный сниффер
 │       ├── README.md
 │       ├── universal-sniffer.sgmodule
-│       ├── universal_sniffer.js
-│       ├── universal-cleaner.sgmodule
-│       └── universal_cleaner.js
+│       └── universal_sniffer.js
 └── README.md                      # Главный каталог
 ```
