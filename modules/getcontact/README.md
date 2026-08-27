@@ -1,13 +1,11 @@
-# 📞 GetContact DNS AdBlock & Tools
+# 📞 GetContact AdBlock (DNS + API Patch)
 
-Облегченный модуль для GetContact (iOS/Android).
+Комплексный модуль для блокировки рекламы в GetContact (iOS/Android).
+
+В связи с тем, что GetContact шифрует 90% своих ответов, этот модуль использует уникальную уязвимость: он перехватывает единственный открытый эндпоинт (`/event-enabled`) и принудительно запрещает приложению инициализировать рекламные SDK (AdMob, AppLovin, Yandex). Для максимальной надёжности также используются DNS-блокировки серверов рекламы.
 
 ---
 
-## 📦 Доступные модули:
-
-### 1. [GetContact DNS AdBlock](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact-noads.sgmodule)
-Отсекает загрузку рекламы от сторонних сетей (AdMob, AppLovin, UnityAds) и отключает системы аналитики (Adjust, AppsFlyer) на уровне DNS. Без MitM.
-
-### 2. [GetContact Local Sniffer](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact-sniffer.sgmodule)
-Локальный сниффер структуры JSON-ответов. Создан исключительно для диагностики и проверки наличия SSL Pinning на серверах `api.getcontact.com`.
+## 🚀 Установка
+Скопируйте ссылку на модуль и вставьте в **Shadowrocket** -> **Modules (Модули)** -> **`+`**:
+[Ссылка на установку (в 1 клик)](https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact-noads.sgmodule)

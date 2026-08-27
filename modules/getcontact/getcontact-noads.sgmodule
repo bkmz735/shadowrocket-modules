@@ -1,6 +1,10 @@
-#!name=GetContact DNS AdBlock
-#!desc=Блокировка сторонних рекламных сетей и трекеров в GetContact. Без перехвата MitM (обход SSL Pinning).
+#!name=GetContact AdBlock (DNS + API Patch)
+#!desc=Полная блокировка рекламы в GetContact. Сочетает отключение инициализации SDK (через JSON-патч) и блокировку рекламных доменов.
 #!category=AdBlock
+
+[Script]
+# Патчим открытую брешь: отключаем инициализацию рекламных движков (AdMob, AppLovin, Yandex) на старте
+GetContact_SDK_Blocker = type=http-response,pattern=^https?:\/\/(?:api|premium)\.getcontact\.com\/v.*\/event-enabled,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/getcontact/getcontact_cleaner.js
 
 [Rule]
 # Блокировка аналитики самого GetContact
@@ -24,3 +28,7 @@ DOMAIN-SUFFIX,rubiconproject.com,REJECT
 DOMAIN-SUFFIX,ads.mopub.com,REJECT
 DOMAIN-SUFFIX,vungle.com,REJECT
 DOMAIN-SUFFIX,chartboost.com,REJECT
+
+[MITM]
+# Перехват только для подмены конфигурации SDK
+hostname = %APPEND% api.getcontact.com, premium.getcontact.com
