@@ -27,17 +27,21 @@ if (urlMatches) {
             if (Array.isArray(obj)) {
                 console.log(`\n--- Array at [${path}] (Length: ${obj.length}) ---`);
                 const preview = obj.length > 8 ? obj.slice(0, 8) : obj;
-                for (let idx = 0; idx < preview.length; idx++) {
-                    const item = preview[idx];
-                    if (!item || typeof item !== 'object') continue;
-
                     const itemType = item.type || item.itemType || item.layout || item.kind || item.component || 'UNKNOWN_TYPE';
-                    const itemKeys = Object.keys(item).slice(0, 10);
-                    console.log(`  [${idx}] Type: "${itemType}" | Keys: [${itemKeys.join(', ')}]`);
+                    const val = (item.value && typeof item.value === 'object') ? item.value : item;
+                    
+                    const title = val.title || item.title || 'N/A';
+                    const subTitle = val.subTitle || val.subtitle || item.subTitle || item.subtitle || 'N/A';
+                    const price = val.price || item.price || val.salary || item.salary || 'N/A';
+                    const categoryId = val.categoryId || item.categoryId || (val.analyticParams && val.analyticParams.categoryId) || 'N/A';
 
+                    console.log(`  [${idx}] Type: "${itemType}" | Cat: ${categoryId}`);
+                    console.log(`       Title: "${title}"`);
+                    console.log(`       SubTitle: "${subTitle}" | Price/Salary: "${price}"`);
+                    
                     if (item.value && typeof item.value === 'object') {
                         const valType = item.value.type || item.value.layout || 'N/A';
-                        console.log(`       ↳ value.type: "${valType}" | value.keys: [${Object.keys(item.value).slice(0, 6).join(', ')}]`);
+                        console.log(`       ↳ value.type: "${valType}" | value.keys: [${Object.keys(item.value).slice(0, 10).join(', ')}]`);
                     }
                 }
             } else {
