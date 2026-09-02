@@ -1,9 +1,9 @@
 #!name=Spotify Premium
-#!desc=Разблокировка функций Spotify Premium, блокировка рекламы и фикс прерывания треков. Трафик направляется напрямую (DIRECT).
+#!desc=Разблокировка функций Spotify Premium, блокировка рекламы и фикс сброса сессий/треков. Трафик направляется напрямую (DIRECT).
 #!category=Spotify
 
 [Rule]
-# Блокировка рекламы и логов (без затрагивания Akamai аудио CDN)
+# Блокировка рекламы и логов (без затрагивания аудио-потоков и CDN)
 DOMAIN,crashdump.spotify.com,REJECT
 DOMAIN,log.spotify.com,REJECT
 DOMAIN,adlogic.spotify.com,REJECT
@@ -26,4 +26,5 @@ spotify-json = type=http-request,pattern=^https?:\/\/(spclient\.wg\.spotify\.com
 spotify-proto = type=http-response,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(bootstrap\/v1\/bootstrap|user-customization-service\/v1\/customize)$,requires-body=1,binary-body-mode=1,max-size=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify-proto.js,timeout=10
 
 [MITM]
+# Строго изолированный MITM только для кастомизации подписки (без login5, apresolve и spotifycdn)
 hostname = %APPEND% spclient.wg.spotify.com, *-spclient.spotify.com
