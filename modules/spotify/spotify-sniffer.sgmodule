@@ -1,9 +1,9 @@
 #!name=Spotify Traffic Sniffer
-#!desc=Глубокий анализ всех запросов, ответов, чанков аудио, лицензий и сессий Spotify для диагностики и реверс-инжиниринга.
+#!desc=Глубокий анализ всех запросов, ответов, чанков аудио, лицензий и сессий Spotify для диагностики и реверс-инжиниринга (с исключением login5 и CDN из MITM).
 #!category=Sniffer
 
 [Rule]
-# Направляем весь трафик Spotify напрямую или в прокси (настроено DIRECT для чистого теста)
+# Направляем весь трафик Spotify напрямую
 DOMAIN-KEYWORD,spotify,DIRECT
 DOMAIN-SUFFIX,scdn.co,DIRECT
 DOMAIN-SUFFIX,pscdn.co,DIRECT
@@ -13,11 +13,12 @@ DOMAIN-SUFFIX,spotifycdn.net,DIRECT
 DOMAIN-SUFFIX,akamaized.net,DIRECT
 
 [Script]
-# Сниффер запросов (Request)
-Spotify_Req_Sniffer = type=http-request,pattern=^https?:\/\/.*(spotify|scdn|spotifycdn|akamaized).*$,requires-body=1,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=30
+# Сниффер запросов (Request) только для разрешенных MITM хостов
+Spotify_Req_Sniffer = type=http-request,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com).*$,requires-body=1,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=30
 
 # Сниффер ответов (Response)
-Spotify_Res_Sniffer = type=http-response,pattern=^https?:\/\/.*(spotify|scdn|spotifycdn|akamaized).*$,requires-body=1,max-size=2097152,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=30
+Spotify_Res_Sniffer = type=http-response,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com).*$,requires-body=1,max-size=2097152,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=30
 
 [MITM]
-hostname = %APPEND% *.spotify.com, *.wg.spotify.com, *-spclient.spotify.com, *.scdn.co, *.pscdn.co, *.spotifycdn.com, *.spotifycdn.net, *.akamaized.net
+# Исключаем *.spotify.com, login5 и *.spotifycdn.com, чтобы не ломать SSL Pinning и загрузку
+hostname = %APPEND% spclient.wg.spotify.com, *-spclient.spotify.com, -login5.spotify.com, -*.spotifycdn.com, -*.scdn.co, -apresolve.spotify.com
