@@ -1,13 +1,13 @@
 #!name=Avito NoAds & Deep Filter
-#!desc=Блокировка рекламы, баннеров и продвигаемых объявлений на Avito (iOS). Включает умный фильтр по словам (работает в поиске и каталоге).
+#!desc=Блокировка рекламы, баннеров и продвигаемых объявлений на Avito (iOS). Фильтр по ключевым словам и максимальной цене.
 #!category=AdBlock
 
-#!arguments=keywords:бпла|дрон|продам
-#!arguments-desc=keywords:Ключевые слова для скрытия объявлений (разделитель | или , )
+#!arguments=keywords:бпла|дрон|продам,max_price:200000
+#!arguments-desc=keywords:Ключевые слова для скрытия (разделитель | или \,),max_price:Максимальная цена ₽ (0 = без ограничений)
 
 [Script]
 # Расширенный паттерн: перехватывает поиск, каталог, рекомендации и главную страницу
-Avito_AdBlock = type=http-response,pattern=^https?:\/\/app\.avito\.ru\/api\/.*(?:items|catalog|search|recommendations|widgets).*$,requires-body=1,max-size=524288,argument={{{keywords}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito_cleaner.js
+Avito_AdBlock = type=http-response,pattern=^https?:\/\/app\.avito\.ru\/api\/.*(?:items|catalog|search|recommendations|widgets).*$,requires-body=1,max-size=524288,argument=kw:{{{keywords}}};mp:{{{max_price}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito_cleaner.js
 
 [Rule]
 # Аналитика и трекеры
