@@ -567,7 +567,7 @@
             var notifBody = "Применены ручные координаты: " + cfg.latitude + ", " + cfg.longitude + " (" + cfg.altitude + " м)";
             notifObj.post(notifTitle, notifSub, notifBody);
             if (storeObj) {
-              storeObj.write(cfg.city, "SR_SPOOF_LAST_NOTIF");
+              storeObj.write("SR_SPOOF_LAST_NOTIF", cfg.city);
             }
           }
         } catch (errNotif) {}
@@ -1043,17 +1043,17 @@
      for (var j = 0; j < positional.length; j += 1) {
        var posVal = positional[j];
        if (!isPlaceholderValue(posVal) && lookupCity(posVal)) {
-         result[city] = posVal;
-         result[город] = posVal;
+         result["city"] = posVal;
+         result["город"] = posVal;
          break;
        }
      }
  
-     if (positional.length > 0 && !result[city] && !result[город]) {
-       if (!isPlaceholderValue(positional[0])) { result.city = positional[0]; result[город] = positional[0]; }
-       if (positional[1] && !isPlaceholderValue(positional[1])) { result.latitude = positional[1]; result[широта] = positional[1]; }
-       if (positional[2] && !isPlaceholderValue(positional[2])) { result.longitude = positional[2]; result[долгота] = positional[2]; }
-       if (positional[3] && !isPlaceholderValue(positional[3])) { result.altitude = positional[3]; result[высота] = positional[3]; }
+     if (positional.length > 0 && !result["city"] && !result["город"]) {
+       if (!isPlaceholderValue(positional[0])) { result.city = positional[0]; result["город"] = positional[0]; }
+       if (positional[1] && !isPlaceholderValue(positional[1])) { result.latitude = positional[1]; result["широта"] = positional[1]; }
+       if (positional[2] && !isPlaceholderValue(positional[2])) { result.longitude = positional[2]; result["долгота"] = positional[2]; }
+       if (positional[3] && !isPlaceholderValue(positional[3])) { result.altitude = positional[3]; result["высота"] = positional[3]; }
      }
      return result;
    }
@@ -1067,7 +1067,7 @@
   }
  
   function readPluginStoreArg(name) {
-  if (typeof $persistentStore === undefined || !$persistentStore.read) return null;
+  if (typeof $persistentStore === "undefined" || !$persistentStore.read) return null;
   try {
   var val = $persistentStore.read(name);
   return (val == null || val === "") ? null : String(val);
@@ -1076,7 +1076,7 @@
  
   function enrichArgsFromPluginStore(args) {
   args = args || {};
-  var keys = [город, city, широта, latitude, долгота, longitude, высота, altitude];
+  var keys = ["город", "city", "широта", "latitude", "долгота", "longitude", "высота", "altitude"];
   for (var i = 0; i < keys.length; i += 1) {
   var k = keys[i];
   if (args[k] == null || args[k] === "" || isPlaceholderValue(args[k])) {
