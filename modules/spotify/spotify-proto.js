@@ -18,27 +18,21 @@ if(resStatus !== 200) {
         if (url.includes("bootstrap/v1/bootstrap")) {
             let bootstrapResponseType = protobuf.Root.fromJSON(spotifyJson).lookupType("BootstrapResponse");
             let bootstrapResponseObj = bootstrapResponseType.decode(binaryBody);
-            accountAttributesMapObj = bootstrapResponseObj?.ucsResponseV0?.success?.customization?.success?.accountAttributesSuccess?.accountAttributes;
-            if (!accountAttributesMapObj) {
-                console.log('⚠️ [PROTO] bootstrap: accountAttributes not found in response chain');
-                $done({});
-                return;
+            if (bootstrapResponseObj && bootstrapResponseObj.ucsResponseV0 && bootstrapResponseObj.ucsResponseV0.success) {
+                accountAttributesMapObj = bootstrapResponseObj.ucsResponseV0.success.customization.success.accountAttributesSuccess.accountAttributes;
+                processMapObj(accountAttributesMapObj);
+                body = bootstrapResponseType.encode(bootstrapResponseObj).finish();
+                console.log('🟢 [PROTO] bootstrap successfully modified');
             }
-            processMapObj(accountAttributesMapObj);
-            body = bootstrapResponseType.encode(bootstrapResponseObj).finish();
-            console.log('🟢 [PROTO] bootstrap successfully modified');
         } else if (url.includes("user-customization-service/v1/customize")) {
             let ucsResponseWrapperType = protobuf.Root.fromJSON(spotifyJson).lookupType("UcsResponseWrapper");
             let ucsResponseWrapperMessage = ucsResponseWrapperType.decode(binaryBody);
-            accountAttributesMapObj = ucsResponseWrapperMessage?.success?.accountAttributesSuccess?.accountAttributes;
-            if (!accountAttributesMapObj) {
-                console.log('⚠️ [PROTO] customize: accountAttributes not found in response chain');
-                $done({});
-                return;
+            if (ucsResponseWrapperMessage && ucsResponseWrapperMessage.success && ucsResponseWrapperMessage.success.accountAttributesSuccess) {
+                accountAttributesMapObj = ucsResponseWrapperMessage.success.accountAttributesSuccess.accountAttributes;
+                processMapObj(accountAttributesMapObj);
+                body = ucsResponseWrapperType.encode(ucsResponseWrapperMessage).finish();
+                console.log('🟢 [PROTO] customize successfully modified');
             }
-            processMapObj(accountAttributesMapObj);
-            body = ucsResponseWrapperType.encode(ucsResponseWrapperMessage).finish();
-            console.log('🟢 [PROTO] customize successfully modified');
         } else if (url.includes("device-capabilities/v1/capabilities")) {
             // Разрешения устройства: если сервер шлет JSON
             if (typeof $response.body === "string" || ($response.headers && ($response.headers["Content-Type"] || "").includes("json"))) {
