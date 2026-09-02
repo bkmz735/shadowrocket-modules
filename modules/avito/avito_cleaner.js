@@ -184,21 +184,39 @@ const detectCategoryFromUrl = (url) => {
 const urlCategory = detectCategoryFromUrl(requestUrl);
 
 /**
- * Проверяет категорию конкретного item (по categoryId или analyticParams).
+ * Проверяет категорию конкретного item (по categoryId, verticalId, или сигнатурам вакансий).
  */
 const detectCategoryFromItem = (item) => {
     if (!item || typeof item !== 'object') return null;
 
-    // Прямой categoryId в item или value
-    if (item.categoryId) return parseInt(item.categoryId, 10);
-    if (item.value && item.value.categoryId) return parseInt(item.value.categoryId, 10);
+    // В ленте главной страницы часто приходит обертка { item: { ... } }
+    const target = item.item || item.value || item;
+    if (typeof target !== 'object') return null;
 
-    // В analyticParams (часто в Авито: analyticParams.categoryId)
-    const ap = item.analyticParams || (item.value && item.value.analyticParams);
+    // 1. Сигнатуры вакансий (100% вакансия)
+    if (target.jobRknDisclaimer || target.jobVacancy || target.salary || target.salaryValue) {
+        return 111;
+    }
+
+    // 2. Прямой categoryId
+    if (target.categoryId) return parseInt(target.categoryId, 10);
+    if (item.categoryId) return parseInt(item.categoryId, 10);
+
+    // 3. verticalId (jobs -> 111, auto -> 4, real_estate -> 2, services -> 114)
+    const vert = (target.verticalId || item.verticalId || '').toLowerCase();
+    if (vert === 'jobs' || vert === 'job') return 111;
+    if (vert === 'auto' || vert === 'transport') return 4;
+    if (vert === 'realty' || vert === 'real_estate') return 2;
+    if (vert === 'services' || vert === 'service') return 114;
+
+    // 4. В analyticParams (часто в Авито: analyticParams.categoryId)
+    const ap = target.analyticParams || item.analyticParams;
     if (ap && typeof ap === 'object') {
         if (ap.categoryId) return parseInt(ap.categoryId, 10);
         if (ap.category_id) return parseInt(ap.category_id, 10);
+        if (ap.vertical_id === 'jobs') return 111;
     }
+
     return null;
 };
 
@@ -209,12 +227,12 @@ const isCategoryTargeted = (item) => {
     if (filterEverywhere) return true;
     if (filterCategoryIds.length === 0) return false;
 
-    // 1. Проверяем категорию из URL запроса
-    if (urlCategory !== null && filterCategoryIds.indexOf(urlCategory) !== -1) return true;
-
-    // 2. Проверяем категорию из самого item
+    // 1. Проверяем категорию из самого item (приоритет для карточек в смешанной ленте главной страницы)
     const itemCat = detectCategoryFromItem(item);
     if (itemCat !== null && filterCategoryIds.indexOf(itemCat) !== -1) return true;
+
+    // 2. Проверяем категорию из URL запроса
+    if (urlCategory !== null && filterCategoryIds.indexOf(urlCategory) !== -1) return true;
 
     return false;
 };
@@ -232,16 +250,14 @@ if (!body) $done({});
 const isAd = (item) => {
     if (!item || typeof item !== 'object') return false;
 
-    const type = (item.type || item.itemType || item.layout || item.kind || item.component || '').toLowerCase();
+    // Проверяем как сам объект, так и вложенные item/value
+    const target = item.item || item.value || item;
+
+    const type = (item.type || item.itemType || target.type || target.layout || item.layout || item.kind || item.component || '').toLowerCase();
     if (AD_TYPES.has(type)) return true;
 
     if (item.isAd || item.isBanner || item.isCommercial || item.isPromo || item.advertising || item.adDetails) return true;
-
-    if (item.value && typeof item.value === 'object') {
-        const valType = (item.value.type || item.value.layout || '').toLowerCase();
-        if (AD_TYPES.has(valType)) return true;
-        if (item.value.isAd || item.value.isBanner || item.value.isCommercial || item.value.advertising) return true;
-    }
+    if (target.isAd || target.isBanner || target.isCommercial || target.isPromo || target.advertising || target.adDetails) return true;
 
     return false;
 };
@@ -287,26 +303,28 @@ const extractPrice = (item) => {
         return null;
     };
 
-    const val = (item && item.value && typeof item.value === 'object') ? item.value : item;
+    const target = (item && (item.item || item.value)) ? (item.item || item.value) : item;
 
     // Список кандидатов на цену / зарплату
     const candidates = [
         item.price,
         item.priceRur,
         item.priceValue,
-        val.price,
-        val.priceRur,
-        val.priceValue,
-        val.salary,
-        val.salaryValue,
-        val.compensation,
-        val.priceDetailed && val.priceDetailed.value,
-        val.priceDetailed && val.priceDetailed.string,
-        // Часто зарплата в вакансиях пишется прямо в subTitle: "260 000 ₽ в месяц"
-        val.subTitle,
-        val.subtitle,
+        target.price,
+        target.priceRur,
+        target.priceValue,
+        target.salary,
+        target.salaryValue,
+        target.compensation,
+        target.priceDetailed && target.priceDetailed.value,
+        target.priceDetailed && target.priceDetailed.string,
+        // Зарплата часто пишется в subTitle / title
+        target.subTitle,
+        target.subtitle,
         item.subTitle,
-        item.subtitle
+        item.subtitle,
+        target.title,
+        item.title
     ];
 
     for (let i = 0; i < candidates.length; i++) {
