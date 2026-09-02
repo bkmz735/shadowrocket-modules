@@ -7,7 +7,7 @@
 #!arguments-desc=город: Название города (москва, питер, спб, киев, минск, алматы, астана, тбилиси, ереван, дубай, лондон, токио, купертино, вручную)\nширота: Широта точки (используется если город не заполнен или "вручную", например 55.7558)\nдолгота: Долгота точки (используется если город не заполнен или "вручную", например 37.6173)\nвысота: Высота над уровнем моря в метрах (например 156 для Москвы, 11 для СПб)
 
 [Script]
-iOS Location Spoofer = type=http-response,pattern=^https?:\/\/(?:gs-loc(?:-cn)?\.apple\.com|gsp-ssl\.ls\.apple\.com|bluedot\.is\.autonavi\.com(?:\.gds\.alibabadns\.com)?)\/clls\/wloc,requires-body=1,binary-body-mode=1,max-size=0,timeout=30,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/location-spoofer/location-spoofer.js,argument=city:{{{город}}};lat:{{{широта}}};lon:{{{долгота}}};alt:{{{высота}}};mode:response
+iOS Location Spoofer = type=http-response,pattern=^https?:\/\/(?:[a-zA-Z0-9-]+\.)*(?:apple\.com|ls\.apple\.com|autonavi\.com)\/clls\/wloc,requires-body=1,binary-body-mode=1,max-size=0,timeout=30,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/location-spoofer/location-spoofer.js,argument=city:{{{город}}};lat:{{{широта}}};lon:{{{долгота}}};alt:{{{высота}}};mode:response
 
 [MITM]
-hostname = %APPEND% gs-loc.apple.com, gs-loc-cn.apple.com, gsp-ssl.ls.apple.com, bluedot.is.autonavi.com, bluedot.is.autonavi.com.gds.alibabadns.com
+hostname = %APPEND% *gs-loc*.apple.com, *gsp-ssl*.ls.apple.com, *ls.apple.com, gs-loc.apple.com, gs-loc-cn.apple.com, gsp-ssl.ls.apple.com, bluedot.is.autonavi.com, bluedot.is.autonavi.com.gds.alibabadns.com

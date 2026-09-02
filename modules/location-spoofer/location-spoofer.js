@@ -1010,8 +1010,8 @@
      var directDec = str;
      try { directDec = decodeURIComponent(str); } catch (e0) {}
      if (lookupCity(directDec)) {
-       result[city] = directDec;
-       result[город] = directDec;
+       result["city"] = directDec;
+       result["город"] = directDec;
        return result;
      }
  
