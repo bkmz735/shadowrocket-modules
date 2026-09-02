@@ -556,18 +556,35 @@
           cfg.altitude = preset.alt;
         }
       } else {
-        // City not found in presets -> Safe fallback & Post notification
-                        try {
+        // City not found in presets -> Fallback to manual coordinates & Post throttled notification
+        try {
           var storeObj = (typeof $persistentStore !== "undefined") ? $persistentStore : null;
           var notifObj = (typeof $notification !== "undefined") ? $notification : null;
-          var lastCity = storeObj ? storeObj.read("SR_SPOOF_LAST_NOTIF") : null;
-          if (lastCity !== cfg.city && notifObj) {
+          var now = Date.now ? Date.now() : new Date().getTime();
+          var lastNotifTime = 0;
+          var lastCity = null;
+
+          if (storeObj && storeObj.read) {
+            lastCity = storeObj.read("SR_SPOOF_LAST_NOTIF");
+            var storedTime = storeObj.read("SR_SPOOF_NOTIF_TIME");
+            if (storedTime) {
+              lastNotifTime = Number(storedTime) || 0;
+            }
+          }
+
+          // Throttle: notify only if city changed OR at least 60 seconds have passed
+          var isDifferentCity = lastCity !== cfg.city;
+          var isCooldownExpired = (now - lastNotifTime) > 60000;
+
+          if (notifObj && (isDifferentCity || isCooldownExpired)) {
             var notifTitle = "iOS Location Spoofer";
             var notifSub = "Город «" + cfg.city + "» не найден в базе";
             var notifBody = "Применены ручные координаты: " + cfg.latitude + ", " + cfg.longitude + " (" + cfg.altitude + " м)";
             notifObj.post(notifTitle, notifSub, notifBody);
-            if (storeObj) {
+
+            if (storeObj && storeObj.write) {
               storeObj.write("SR_SPOOF_LAST_NOTIF", cfg.city);
+              storeObj.write("SR_SPOOF_NOTIF_TIME", String(now));
             }
           }
         } catch (errNotif) {}
@@ -602,19 +619,17 @@
   }
 
   function patchLocation(locationPayload, config) {
-    // Minimal rewrite: replace Latitude (1), Longitude (2), Accuracy (3), Altitude (5).
-    // If the sub-message lacks lat/lon, pass it through untouched to prevent corrupting
-    // the response and causing iOS "Location Unavailable".
+    // Location sub-messages only modify Latitude (1), Longitude (2), and Accuracy (3).
+    // Altitude (5) is updated if already present in the message. Never inject new fields into
+    // Location sub-messages because iOS locationd strictly rejects modified schemas as corrupted.
     var parts = [];
     var fields = locationPayload.length ? parseFields(locationPayload) : [];
     var hasLat = false;
     var hasLon = false;
-    var hasAlt = false;
     var i;
     for (i = 0; i < fields.length; i += 1) {
       if (fields[i].fieldNumber === 1 && fields[i].wireType === 0) hasLat = true;
       if (fields[i].fieldNumber === 2 && fields[i].wireType === 0) hasLon = true;
-      if (fields[i].fieldNumber === 5 && fields[i].wireType === 0) hasAlt = true;
     }
     if (!hasLat || !hasLon) {
       return locationPayload;
@@ -632,9 +647,6 @@
       } else {
         parts.push(field.raw);
       }
-    }
-    if (!hasAlt && Number.isFinite(config.altitude)) {
-      parts.push(makeVarintField(5, config.altitude));
     }
     return concatBytes(parts);
   }
@@ -1061,9 +1073,9 @@
    function resolveConfigUrl(args) { return ""; }
  
   function isPlaceholderValue(value) {
-  if (typeof value !== "string") return false;
-  var v = value.trim();
-  return /^\{[^}]+\}$/.test(v) || /^\([^)]+\)$/.test(v) || /^%7B.*%7D$/i.test(v) || (v.indexOf("город") >= 0 && (v.charAt(0) === "{" || v.charAt(0) === "("));
+    if (typeof value !== "string") return false;
+    var v = value.trim();
+    return /^\{+[^}]+\}+$/.test(v) || /^\(+[^)]+\)+$/.test(v) || /^%7B.*%7D$/i.test(v) || (v.indexOf("город") >= 0 && (v.charAt(0) === "{" || v.charAt(0) === "("));
   }
  
   function readPluginStoreArg(name) {
