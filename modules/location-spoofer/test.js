@@ -223,7 +223,6 @@ runTest("Unknown city fallback to manual coordinates and notification cooldown",
     write: (key, val) => { store[key] = String(val); return true; }
   };
 
-  // 1st request with unknown city -> should post notification and use manual coordinates
   const cfg1 = locationSpoofer.normalizeConfig({
     "город": "неизвестный_город_123",
     "широта": "44.1234",
@@ -232,16 +231,17 @@ runTest("Unknown city fallback to manual coordinates and notification cooldown",
   });
   assert.strictEqual(cfg1.latitude, 44.1234);
   assert.strictEqual(cfg1.longitude, 39.5678);
+
+  // 1st response intercept -> should notify
+  locationSpoofer.notifyUnknownCityOnce(cfg1);
   assert.strictEqual(notifications.length, 1);
   assert.ok(notifications[0].sub.includes("неизвестный_город_123"));
 
-  // Subsequent request with SAME unknown city immediately -> should NOT duplicate notification (throttled)
-  locationSpoofer.normalizeConfig({
-    "город": "неизвестный_город_123",
-    "широта": "44.1234",
-    "долгота": "39.5678"
-  });
-  assert.strictEqual(notifications.length, 1, "Expected duplicate notification to be throttled");
+  // Subsequent responses with SAME unknown city -> throttled
+  locationSpoofer.notifyUnknownCityOnce(cfg1);
+  locationSpoofer.notifyUnknownCityOnce(cfg1);
+  locationSpoofer.notifyUnknownCityOnce(cfg1);
+  assert.strictEqual(notifications.length, 1, "Expected duplicate notifications to be throttled to 1");
 
   // Cleanup globals
   delete global.$notification;

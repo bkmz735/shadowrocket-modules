@@ -555,39 +555,6 @@
         if (preset.alt !== undefined) {
           cfg.altitude = preset.alt;
         }
-      } else {
-        // City not found in presets -> Fallback to manual coordinates & Post throttled notification
-        try {
-          var storeObj = (typeof $persistentStore !== "undefined") ? $persistentStore : null;
-          var notifObj = (typeof $notification !== "undefined") ? $notification : null;
-          var now = Date.now ? Date.now() : new Date().getTime();
-          var lastNotifTime = 0;
-          var lastCity = null;
-
-          if (storeObj && storeObj.read) {
-            lastCity = storeObj.read("SR_SPOOF_LAST_NOTIF");
-            var storedTime = storeObj.read("SR_SPOOF_NOTIF_TIME");
-            if (storedTime) {
-              lastNotifTime = Number(storedTime) || 0;
-            }
-          }
-
-          // Throttle: notify only if city changed OR at least 60 seconds have passed
-          var isDifferentCity = lastCity !== cfg.city;
-          var isCooldownExpired = (now - lastNotifTime) > 60000;
-
-          if (notifObj && (isDifferentCity || isCooldownExpired)) {
-            var notifTitle = "iOS Location Spoofer";
-            var notifSub = "Город «" + cfg.city + "» не найден в базе";
-            var notifBody = "Применены ручные координаты: " + cfg.latitude + ", " + cfg.longitude + " (" + cfg.altitude + " м)";
-            notifObj.post(notifTitle, notifSub, notifBody);
-
-            if (storeObj && storeObj.write) {
-              storeObj.write("SR_SPOOF_LAST_NOTIF", cfg.city);
-              storeObj.write("SR_SPOOF_NOTIF_TIME", String(now));
-            }
-          }
-        } catch (errNotif) {}
       }
     }
 
@@ -1586,6 +1553,43 @@
     });
   }
 
+  function notifyUnknownCityOnce(config) {
+    if (!config || !config.city) return;
+    var isManual = config.city === "custom" || config.city === "вручную" || config.city === "none" || config.city === "-";
+    if (isManual) return;
+    if (lookupCity(config.city)) return;
+
+    try {
+      var storeObj = (typeof $persistentStore !== "undefined") ? $persistentStore : null;
+      var notifObj = (typeof $notification !== "undefined") ? $notification : null;
+      var now = Date.now ? Date.now() : new Date().getTime();
+      var lastNotifTime = 0;
+      var lastCity = null;
+
+      if (storeObj && storeObj.read) {
+        lastCity = storeObj.read("SR_SPOOF_LAST_NOTIF");
+        var storedTime = storeObj.read("SR_SPOOF_NOTIF_TIME");
+        if (storedTime) {
+          lastNotifTime = Number(storedTime) || 0;
+        }
+      }
+
+      var isDifferentCity = lastCity !== config.city;
+      var isCooldownExpired = (now - lastNotifTime) > 60000;
+
+      if (notifObj && (isDifferentCity || isCooldownExpired)) {
+        if (storeObj && storeObj.write) {
+          storeObj.write("SR_SPOOF_LAST_NOTIF", config.city);
+          storeObj.write("SR_SPOOF_NOTIF_TIME", String(now));
+        }
+        var notifTitle = "iOS Location Spoofer";
+        var notifSub = "Город «" + config.city + "» не найден в базе";
+        var notifBody = "Применены ручные координаты: " + config.latitude + ", " + config.longitude + " (" + config.altitude + " м)";
+        notifObj.post(notifTitle, notifSub, notifBody);
+      }
+    } catch (errNotif) {}
+  }
+
   function continueResponseRewrite(config) {
     var responseBody = messageBodyToBytes($response);
     if (!responseBody || responseBody.length < 2) {
@@ -1626,6 +1630,7 @@
       console.log("Location spoofer patched locations: " + patchedPayloadSummary(responseResult.payload));
     }
     logRawDump("response-patched", responseResult.response, config);
+    notifyUnknownCityOnce(config);
     doneRewriteResponse(responseResult.response, {
       wifiCount: responseResult.wifiCount,
       cellCount: responseResult.cellCount,
@@ -1786,7 +1791,8 @@
     spoofAppleResponse: spoofAppleResponse,
     parseArgumentString: parseArgumentString,
     readScriptArguments: readScriptArguments,
-    prepareRequestHeaders: prepareRequestHeaders
+    prepareRequestHeaders: prepareRequestHeaders,
+    notifyUnknownCityOnce: notifyUnknownCityOnce
   };
 
   if (typeof module !== "undefined" && module.exports) {
