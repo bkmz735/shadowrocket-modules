@@ -3,12 +3,12 @@
 #!category=Spotify
 
 [Rule]
-# 1. Блокировка рекламы, аналитики и промо-баннеров
+# 1. Блокировка рекламы, аналитики, счётчиков потребления и промо-баннеров
 DOMAIN,crashdump.spotify.com,REJECT
 DOMAIN,log.spotify.com,REJECT
 DOMAIN,adlogic.spotify.com,REJECT
 DOMAIN-SUFFIX,scorecardresearch.com,REJECT
-URL-REGEX,^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(ad-logic|ads|podcast-ap4p\/.*\/ads|partner-userid|gabo-receiver-service|vanilla|pendragon|trials-facade|sponsoredplaylist)\/,REJECT
+URL-REGEX,^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(ad-logic|ads|podcast-ap4p\/.*\/ads|partner-userid|gabo-receiver-service|vanilla|pendragon|trials-facade|sponsoredplaylist|capping-api|premium-destination-hubs|pam-view-service|event-service)\/,REJECT
 
 # 2. Аудио-потоки, CDN и WebSocket Dealer -> DIRECT (максимальная скорость, защита от обрывов на 8-10 сек)
 DOMAIN,gew1-dealer.g2.spotify.com,DIRECT
@@ -30,8 +30,8 @@ DOMAIN-KEYWORD,spotify,PROXY
 ^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/.* header-del If-Modified-Since
 
 [Script]
-spotify-json = type=http-request,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(artistview\/v1\/artist|album-entity-view\/v2\/album),requires-body=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify-json.js?v=20260903_04,timeout=10
-spotify-proto = type=http-response,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(bootstrap\/v1\/bootstrap|user-customization-service\/v1\/customize|device-capabilities\/v1\/capabilities),requires-body=1,binary-body-mode=1,max-size=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify-proto.js?v=20260903_04,timeout=10
+spotify-json = type=http-request,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(artistview\/v1\/artist|album-entity-view\/v2\/album),requires-body=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify-json.js?v=20260903_05,timeout=10
+spotify-proto = type=http-response,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(bootstrap\/v1\/bootstrap|user-customization-service\/v1\/customize|device-capabilities\/v1\/capabilities),requires-body=1,binary-body-mode=1,max-size=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify-proto.js?v=20260903_05,timeout=10
 
 [MITM]
 # Строго изолированный MITM только для кастомизации подписки (без login5, apresolve и spotifycdn)
