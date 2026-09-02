@@ -1,17 +1,13 @@
 #!name=Spotify Premium
-#!desc=Разблокировка функций Spotify Premium, блокировка рекламы и фикс прерывания треков на 7-8 секунде. Трафик направляется напрямую (DIRECT).
+#!desc=Разблокировка функций Spotify Premium, блокировка рекламы и фикс прерывания треков. Трафик направляется напрямую (DIRECT).
 #!category=Spotify
 
 [Rule]
-# Блокировка QUIC/UDP (исправляет сброс воспроизведения через 7-8 секунд)
-AND,((DOMAIN-KEYWORD,spotify), (PROTOCOL,UDP)),REJECT
-AND,((DOMAIN-SUFFIX,scdn.co), (PROTOCOL,UDP)),REJECT
-AND,((DOMAIN-SUFFIX,pscdn.co), (PROTOCOL,UDP)),REJECT
-AND,((DOMAIN-SUFFIX,spotifycdn.com), (PROTOCOL,UDP)),REJECT
-AND,((DOMAIN-SUFFIX,spotifycdn.net), (PROTOCOL,UDP)),REJECT
-
-# Реклама и аналитика
-URL-REGEX,^https?:\/\/(.*-ad-logic.*|.*ads-ak-ent.*|ads-ak-spotify-com\.akamaized\.net|crashdump\.spotify\.com|log\.spotify\.com|spclient\.wg\.spotify\.com\/(ad-logic|ads))\/,REJECT
+# Блокировка рекламы и логов (без затрагивания Akamai аудио CDN)
+DOMAIN,crashdump.spotify.com,REJECT
+DOMAIN,log.spotify.com,REJECT
+DOMAIN,adlogic.spotify.com,REJECT
+URL-REGEX,^https?:\/\/spclient\.wg\.spotify\.com\/(ad-logic|ads)\/,REJECT
 
 # Полный список аудио-CDN и доменов Spotify в DIRECT
 DOMAIN-KEYWORD,spotify,DIRECT
@@ -20,7 +16,7 @@ DOMAIN-SUFFIX,pscdn.co,DIRECT
 DOMAIN-SUFFIX,spoti.fi,DIRECT
 DOMAIN-SUFFIX,spotifycdn.com,DIRECT
 DOMAIN-SUFFIX,spotifycdn.net,DIRECT
-DOMAIN-SUFFIX,audio-ak-spotify-com.akamaized.net,DIRECT
+DOMAIN-SUFFIX,akamaized.net,DIRECT
 
 [Header Rewrite]
 ^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/user-customization-service\/v1\/customize header-del If-None-Match
@@ -30,4 +26,4 @@ spotify-json = type=http-request,pattern=^https?:\/\/(spclient\.wg\.spotify\.com
 spotify-proto = type=http-response,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(bootstrap\/v1\/bootstrap|user-customization-service\/v1\/customize)$,requires-body=1,binary-body-mode=1,max-size=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify-proto.js,timeout=10
 
 [MITM]
-hostname = %APPEND% spclient.wg.spotify.com, *-spclient.spotify.com, *.spotify.com
+hostname = %APPEND% spclient.wg.spotify.com, *-spclient.spotify.com
