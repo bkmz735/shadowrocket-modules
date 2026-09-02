@@ -165,16 +165,14 @@ if (typeof $argument !== 'undefined' && $argument !== null) {
     }
 }
 
-// ─── Определение категории текущего запроса ──────────────────────────────────
+// ─── Определение категории ──────────────────────────────────────────────────
 
 const requestUrl = (typeof $request !== 'undefined' && $request.url) ? $request.url : '';
 
 const detectCategoryFromUrl = (url) => {
     if (!url) return null;
-    // Ищем categoryId в URL
     const catMatch = url.match(/[?&]categoryId=(\d+)/);
     if (catMatch) return parseInt(catMatch[1], 10);
-    // Ищем context в URL
     const ctxMatch = url.match(/[?&]context=(\w+)/i);
     if (ctxMatch) {
         const ctx = ctxMatch[1].toLowerCase();
@@ -183,11 +181,43 @@ const detectCategoryFromUrl = (url) => {
     return null;
 };
 
-const currentCategory = detectCategoryFromUrl(requestUrl);
+const urlCategory = detectCategoryFromUrl(requestUrl);
 
-// Определяем, нужно ли применять kw/mp фильтры
-const shouldApplyFilters = filterEverywhere ||
-    (filterCategoryIds.length > 0 && currentCategory !== null && filterCategoryIds.indexOf(currentCategory) !== -1);
+/**
+ * Проверяет категорию конкретного item (по categoryId или analyticParams).
+ */
+const detectCategoryFromItem = (item) => {
+    if (!item || typeof item !== 'object') return null;
+
+    // Прямой categoryId в item или value
+    if (item.categoryId) return parseInt(item.categoryId, 10);
+    if (item.value && item.value.categoryId) return parseInt(item.value.categoryId, 10);
+
+    // В analyticParams (часто в Авито: analyticParams.categoryId)
+    const ap = item.analyticParams || (item.value && item.value.analyticParams);
+    if (ap && typeof ap === 'object') {
+        if (ap.categoryId) return parseInt(ap.categoryId, 10);
+        if (ap.category_id) return parseInt(ap.category_id, 10);
+    }
+    return null;
+};
+
+/**
+ * Определяет, попадает ли item/запрос под выбранные категории.
+ */
+const isCategoryTargeted = (item) => {
+    if (filterEverywhere) return true;
+    if (filterCategoryIds.length === 0) return false;
+
+    // 1. Проверяем категорию из URL запроса
+    if (urlCategory !== null && filterCategoryIds.indexOf(urlCategory) !== -1) return true;
+
+    // 2. Проверяем категорию из самого item
+    const itemCat = detectCategoryFromItem(item);
+    if (itemCat !== null && filterCategoryIds.indexOf(itemCat) !== -1) return true;
+
+    return false;
+};
 
 // ─── Тело ответа ─────────────────────────────────────────────────────────────
 
@@ -240,27 +270,43 @@ const extractText = (node, acc, visited, depth) => {
 };
 
 /**
- * Извлекает числовую цену из item.
+ * Извлекает числовую цену/зарплату из item.
+ * В вакансиях Авито часто хранит зарплату в subTitle: "260 000 ₽" или salary: 260000
  */
 const extractPrice = (item) => {
     const toNum = (v) => {
         if (typeof v === 'number') return v;
         if (typeof v === 'string') {
-            const n = parseInt(v.replace(/[^\d]/g, ''), 10);
-            return isNaN(n) ? null : n;
+            // Ищем паттерн цены: "260 000 ₽", "от 260000", "260000 руб"
+            const match = v.replace(/\s/g, '').match(/(\d{3,9})/);
+            if (match) {
+                const n = parseInt(match[1], 10);
+                return isNaN(n) ? null : n;
+            }
         }
         return null;
     };
 
+    const val = (item && item.value && typeof item.value === 'object') ? item.value : item;
+
+    // Список кандидатов на цену / зарплату
     const candidates = [
         item.price,
         item.priceRur,
         item.priceValue,
-        item.priceDetailed && item.priceDetailed.value,
-        item.value && item.value.price,
-        item.value && item.value.priceRur,
-        item.value && item.value.priceDetailed && item.value.priceDetailed.value,
-        item.value && item.value.priceValue,
+        val.price,
+        val.priceRur,
+        val.priceValue,
+        val.salary,
+        val.salaryValue,
+        val.compensation,
+        val.priceDetailed && val.priceDetailed.value,
+        val.priceDetailed && val.priceDetailed.string,
+        // Часто зарплата в вакансиях пишется прямо в subTitle: "260 000 ₽ в месяц"
+        val.subTitle,
+        val.subtitle,
+        item.subTitle,
+        item.subtitle
     ];
 
     for (let i = 0; i < candidates.length; i++) {
@@ -304,8 +350,8 @@ const shouldKeepItem = (item, stats) => {
     // Рекламу убираем ВСЕГДА, независимо от категории
     if (isAd(item)) { stats.adsRemoved++; return false; }
 
-    // kw и mp фильтры — только если shouldApplyFilters = true
-    if (!shouldApplyFilters) return true;
+    // kw и mp фильтры — только если категория совпадает
+    if (!isCategoryTargeted(item)) return true;
 
     if (containsBlockedKeyword(item, stats)) { stats.keywordsRemoved++; return false; }
 
