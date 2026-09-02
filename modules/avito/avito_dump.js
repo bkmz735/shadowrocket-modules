@@ -19,33 +19,43 @@ if (urlMatches) {
         // Анализируем верхнеуровневые ключи
         console.log(`Root Keys: ${JSON.stringify(Object.keys(data))}`);
 
-        // Ищем массивы (лента, виджеты, баннеры, результаты поиска)
-        // depth — защита от stack overflow на глубоко вложенных структурах
+        // Глубокий инспектор элементов выдачи и карточек
         function inspect(obj, path, depth) {
-            if (!obj || typeof obj !== 'object' || depth > 6) return;
+            if (!obj || typeof obj !== 'object' || depth > 5) return;
 
             if (Array.isArray(obj)) {
-                console.log(`\n--- Array at [${path}] (Length: ${obj.length}) ---`);
-                const preview = obj.length > 8 ? obj.slice(0, 8) : obj;
-                for (let idx = 0; idx < preview.length; idx++) {
-                    const item = preview[idx];
-                    if (!item || typeof item !== 'object') continue;
+                // Если массив содержит объекты
+                if (obj.length > 0 && typeof obj[0] === 'object' && obj[0] !== null) {
+                    console.log(`\n--- Array at [${path}] (Length: ${obj.length}) ---`);
+                    const preview = obj.length > 10 ? obj.slice(0, 10) : obj;
+                    for (let idx = 0; idx < preview.length; idx++) {
+                        const raw = preview[idx];
+                        if (!raw || typeof raw !== 'object') continue;
 
-                    const itemType = item.type || item.itemType || item.layout || item.kind || item.component || 'UNKNOWN_TYPE';
-                    const val = (item.value && typeof item.value === 'object') ? item.value : item;
-                    
-                    const title = val.title || item.title || 'N/A';
-                    const subTitle = val.subTitle || val.subtitle || item.subTitle || item.subtitle || 'N/A';
-                    const price = val.price || item.price || val.salary || item.salary || 'N/A';
-                    const categoryId = val.categoryId || item.categoryId || (val.analyticParams && val.analyticParams.categoryId) || 'N/A';
+                        const item = raw.item || raw.value || raw;
+                        const itemType = raw.type || raw.itemType || raw.layout || item.type || item.layout || 'UNKNOWN_TYPE';
+                        
+                        const title = item.title || raw.title || 'N/A';
+                        const subTitle = item.subTitle || item.subtitle || raw.subTitle || raw.subtitle || 'N/A';
+                        const price = item.price || raw.price || item.salary || raw.salary || item.priceValue || 'N/A';
+                        const cat = item.categoryId || raw.categoryId || (item.analyticParams && item.analyticParams.categoryId) || 'N/A';
+                        const vert = item.verticalId || raw.verticalId || (item.analyticParams && item.analyticParams.vertical_id) || 'N/A';
 
-                    console.log(`  [${idx}] Type: "${itemType}" | Cat: ${categoryId}`);
-                    console.log(`       Title: "${title}"`);
-                    console.log(`       SubTitle: "${subTitle}" | Price/Salary: "${price}"`);
-                    
-                    if (item.value && typeof item.value === 'object') {
-                        const valType = item.value.type || item.value.layout || 'N/A';
-                        console.log(`       ↳ value.type: "${valType}" | value.keys: [${Object.keys(item.value).slice(0, 10).join(', ')}]`);
+                        // Извлекаем все текстовые строки для поиска скрытых полей с ценой/зарплатой
+                        const stringFields = [];
+                        for (let k in item) {
+                            if (typeof item[k] === 'string' && item[k].length < 100) {
+                                stringFields.push(`${k}: "${item[k]}"`);
+                            }
+                        }
+
+                        console.log(`\n[${idx}] Type: "${itemType}" | Cat: ${cat} | Vert: "${vert}"`);
+                        console.log(`     Title: "${title}"`);
+                        console.log(`     SubTitle: "${subTitle}"`);
+                        console.log(`     Price/Salary: "${price}"`);
+                        if (stringFields.length > 0) {
+                            console.log(`     Fields: [${stringFields.slice(0, 5).join('; ')}]`);
+                        }
                     }
                 }
             } else {
@@ -60,7 +70,7 @@ if (urlMatches) {
         inspect(data, '', 0);
         console.log(`=====================================================\n`);
     } catch (e) {
-        // Ответ не в JSON формате — не логируем намеренно
+        // Ответ не в JSON формате
     }
 }
 
