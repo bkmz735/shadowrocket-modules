@@ -53,23 +53,71 @@ const CONTEXT_TO_CATEGORY = {
 // ─── Парсинг аргументов ──────────────────────────────────────────────────────
 
 let blockedKeywords = [];
+let minPrice = 0;
 let maxPrice = 0;
 let filterCategoryIds = []; // пустой = kw/mp отключены
 let filterEverywhere = false; // true если cats:все/all
 
+// Вспомогательная функция для парсинга цены/диапазона:
+// "5000-200000", "от 5000 до 200000", "от 5000", "до 200000", "200000"
+const parsePriceRange = (str) => {
+    let min = 0;
+    let max = 0;
+    if (!str) return { min, max };
+
+    const clean = String(str).toLowerCase().replace(/[\s_₽руб]/g, '');
+
+    // Проверяем паттерн "от X до Y" или "отXдоY"
+    const fromToMatch = clean.match(/(?:от|^)(\d+)(?:до|-)(\d+)/);
+    if (fromToMatch) {
+        min = parseInt(fromToMatch[1], 10) || 0;
+        max = parseInt(fromToMatch[2], 10) || 0;
+        return { min, max };
+    }
+
+    // Паттерн "от X"
+    const fromOnly = clean.match(/^от(\d+)$/);
+    if (fromOnly) {
+        min = parseInt(fromOnly[1], 10) || 0;
+        return { min, max };
+    }
+
+    // Паттерн "до Y"
+    const toOnly = clean.match(/^до(\d+)$/);
+    if (toOnly) {
+        max = parseInt(toOnly[1], 10) || 0;
+        return { min, max };
+    }
+
+    // Паттерн просто число "X" (трактуем как верхнюю границу)
+    const singleNum = clean.match(/^(\d+)$/);
+    if (singleNum) {
+        max = parseInt(singleNum[1], 10) || 0;
+        return { min, max };
+    }
+
+    return { min, max };
+};
+
 if (typeof $argument !== 'undefined' && $argument !== null) {
     let rawArg = String($argument).trim();
 
-    // Поддержка JSON-объекта { keywords: "...", max_price: 200000 }
+    // Поддержка JSON-объекта { keywords: "...", price: "5000-200000", max_price: 200000 }
     if (rawArg.startsWith('{') && rawArg.endsWith('}')) {
         try {
             const parsed = JSON.parse(rawArg);
             if (parsed.keywords) rawArg = String(parsed.keywords);
-            if (parsed.max_price) maxPrice = parseInt(parsed.max_price, 10) || 0;
+            if (parsed.price) {
+                const pr = parsePriceRange(parsed.price);
+                minPrice = pr.min;
+                maxPrice = pr.max;
+            } else if (parsed.max_price) {
+                maxPrice = parseInt(parsed.max_price, 10) || 0;
+            }
         } catch (e) {}
     }
 
-    // Новый формат: kw:слова;mp:200000;cats:вакансии|работа
+    // Новый формат: kw:слова;mp:5000-200000;cats:вакансии|работа
     const kwMatch = rawArg.match(/(?:^|;)\s*kw:([^;]*)/i);
     const mpMatch = rawArg.match(/(?:^|;)\s*mp:([^;]*)/i);
     const catsMatch = rawArg.match(/(?:^|;)\s*cats:([^;]*)/i);
@@ -78,7 +126,11 @@ if (typeof $argument !== 'undefined' && $argument !== null) {
         // Новый формат
         if (kwMatch) rawArg = kwMatch[1].trim();
         else rawArg = '';
-        if (mpMatch) maxPrice = parseInt(mpMatch[1].replace(/[\s_]/g, ''), 10) || 0;
+        if (mpMatch) {
+            const pr = parsePriceRange(mpMatch[1]);
+            minPrice = pr.min;
+            maxPrice = pr.max;
+        }
 
         // Парсинг категорий
         if (catsMatch) {
@@ -257,13 +309,21 @@ const shouldKeepItem = (item, stats) => {
 
     if (containsBlockedKeyword(item, stats)) { stats.keywordsRemoved++; return false; }
 
-    if (maxPrice > 0) {
+    if (minPrice > 0 || maxPrice > 0) {
         const price = extractPrice(item);
-        if (price !== null && price > maxPrice) {
-            stats.priceRemoved++;
-            const title = item.title || (item.value && item.value.title) || 'No Title';
-            stats.removedTitles.push('"' + title + '" [price: ' + price + ' > ' + maxPrice + ']');
-            return false;
+        if (price !== null) {
+            if (minPrice > 0 && price < minPrice) {
+                stats.priceRemoved++;
+                const title = item.title || (item.value && item.value.title) || 'No Title';
+                stats.removedTitles.push('"' + title + '" [price: ' + price + ' < ' + minPrice + ']');
+                return false;
+            }
+            if (maxPrice > 0 && price > maxPrice) {
+                stats.priceRemoved++;
+                const title = item.title || (item.value && item.value.title) || 'No Title';
+                stats.removedTitles.push('"' + title + '" [price: ' + price + ' > ' + maxPrice + ']');
+                return false;
+            }
         }
     }
 
@@ -320,8 +380,12 @@ try {
     if (blockedKeywords.length > 0) {
         console.log('Keywords: [' + blockedKeywords.join(', ') + ']');
     }
-    if (maxPrice > 0) {
-        console.log('Max Price: ' + maxPrice + ' rub');
+    if (minPrice > 0 || maxPrice > 0) {
+        let priceStr = 'Price limit: ';
+        if (minPrice > 0 && maxPrice > 0) priceStr += minPrice + ' - ' + maxPrice + ' rub';
+        else if (minPrice > 0) priceStr += 'from ' + minPrice + ' rub';
+        else if (maxPrice > 0) priceStr += 'up to ' + maxPrice + ' rub';
+        console.log(priceStr);
     }
     if (filterCategoryIds.length > 0) {
         console.log('Filter cats: [' + filterCategoryIds.join(', ') + ']' + (filterEverywhere ? ' (ALL)' : ''));
