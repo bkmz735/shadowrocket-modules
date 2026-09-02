@@ -1,15 +1,19 @@
 /**
- * Deep Cleaner Script for Avito API
- * 1. Убирает продвигаемые объявления, VIP, баннеры
+ * Deep Cleaner Script for Avito API v3
+ * 1. Убирает продвигаемые объявления, VIP, баннеры (ВСЕГДА)
  * 2. Глубоко ищет ключевые слова (в заголовках, описаниях, сниппетах)
  * 3. Скрывает объявления дороже заданной цены
+ * 4. Фильтры kw/mp работают только в указанных категориях
  *
- * Формат аргумента: kw:бпла|дрон;mp:200000
- *   kw — ключевые слова (разделитель | , ;)
- *   mp — максимальная цена в рублях (0 или отсутствие = без ограничений)
+ * Формат аргумента: kw:бпла|дрон;mp:200000;cats:вакансии|услуги
+ *   kw   — ключевые слова (разделитель |)
+ *   mp   — максимальная цена в рублях (0 = без ограничений)
+ *   cats — категории для применения kw/mp (пусто = фильтры отключены, только реклама)
+ *          Доступные: вакансии, резюме, работа, услуги, авто, недвижимость, электроника, все
  */
 
-// Вынесено в модульную область — создаётся один раз, Set даёт O(1) поиск
+// ─── Константы ───────────────────────────────────────────────────────────────
+
 const AD_TYPES = new Set([
     'banner', 'commercial', 'commercial_banner', 'ad', 'direct',
     'yandex_direct', 'promo', 'vas', 'advertising', 'brand',
@@ -18,10 +22,40 @@ const AD_TYPES = new Set([
 
 const TEXT_KEYS = ['title', 'header', 'description', 'text', 'subtitle', 'snippet', 'shortDescription'];
 
+// Маппинг человекочитаемых названий → массив categoryId
+// null означает "все категории"
+const CATEGORY_MAP = {
+    // Вакансии (отдельно)
+    'вакансии': [111], 'вакансия': [111],
+    // Резюме (отдельно)
+    'резюме': [112],
+    // Работа = мета-алиас (вакансии + резюме)
+    'работа': [111, 112],
+    // Услуги
+    'услуги': [114], 'услуга': [114],
+    // Транспорт
+    'авто': [4], 'транспорт': [4], 'машины': [4], 'машина': [4],
+    // Недвижимость
+    'недвижимость': [2], 'квартиры': [2], 'квартира': [2],
+    // Электроника
+    'электроника': [6], 'телефоны': [6],
+    // Мета: всё
+    'всё': null, 'все': null, 'all': null,
+};
+
+// Контексты из URL для резервного определения категории
+const CONTEXT_TO_CATEGORY = {
+    'jobvacancies': 111,
+    'jobresume': 112,
+    'service': 114,
+};
+
 // ─── Парсинг аргументов ──────────────────────────────────────────────────────
 
 let blockedKeywords = [];
-let maxPrice = 0; // 0 = без ограничений
+let maxPrice = 0;
+let filterCategoryIds = []; // пустой = kw/mp отключены
+let filterEverywhere = false; // true если cats:все/all
 
 if (typeof $argument !== 'undefined' && $argument !== null) {
     let rawArg = String($argument).trim();
@@ -35,17 +69,36 @@ if (typeof $argument !== 'undefined' && $argument !== null) {
         } catch (e) {}
     }
 
-    // Новый формат: kw:слова;mp:200000
-    // Части разделены символом ';' вне секций kw/mp
-    // Backward-compatible: если нет kw:/mp: — трактуем как старый формат (только ключевые слова)
+    // Новый формат: kw:слова;mp:200000;cats:вакансии|работа
     const kwMatch = rawArg.match(/(?:^|;)\s*kw:([^;]*)/i);
     const mpMatch = rawArg.match(/(?:^|;)\s*mp:([^;]*)/i);
+    const catsMatch = rawArg.match(/(?:^|;)\s*cats:([^;]*)/i);
 
-    if (kwMatch || mpMatch) {
+    if (kwMatch || mpMatch || catsMatch) {
         // Новый формат
         if (kwMatch) rawArg = kwMatch[1].trim();
         else rawArg = '';
         if (mpMatch) maxPrice = parseInt(mpMatch[1].replace(/[\s_]/g, ''), 10) || 0;
+
+        // Парсинг категорий
+        if (catsMatch) {
+            const catNames = catsMatch[1].split(/[,|]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+            for (let i = 0; i < catNames.length; i++) {
+                const name = catNames[i];
+                if (name in CATEGORY_MAP) {
+                    const ids = CATEGORY_MAP[name];
+                    if (ids === null) {
+                        filterEverywhere = true;
+                    } else {
+                        for (let j = 0; j < ids.length; j++) {
+                            if (filterCategoryIds.indexOf(ids[j]) === -1) {
+                                filterCategoryIds.push(ids[j]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     } else {
         // Старый формат: чистим legacy-префиксы
         const lower = rawArg.toLowerCase();
@@ -59,6 +112,30 @@ if (typeof $argument !== 'undefined' && $argument !== null) {
         blockedKeywords = rawArg.split(/[,|]/).map(s => s.trim().toLowerCase()).filter(Boolean);
     }
 }
+
+// ─── Определение категории текущего запроса ──────────────────────────────────
+
+const requestUrl = (typeof $request !== 'undefined' && $request.url) ? $request.url : '';
+
+const detectCategoryFromUrl = (url) => {
+    if (!url) return null;
+    // Ищем categoryId в URL
+    const catMatch = url.match(/[?&]categoryId=(\d+)/);
+    if (catMatch) return parseInt(catMatch[1], 10);
+    // Ищем context в URL
+    const ctxMatch = url.match(/[?&]context=(\w+)/i);
+    if (ctxMatch) {
+        const ctx = ctxMatch[1].toLowerCase();
+        if (ctx in CONTEXT_TO_CATEGORY) return CONTEXT_TO_CATEGORY[ctx];
+    }
+    return null;
+};
+
+const currentCategory = detectCategoryFromUrl(requestUrl);
+
+// Определяем, нужно ли применять kw/mp фильтры
+const shouldApplyFilters = filterEverywhere ||
+    (filterCategoryIds.length > 0 && currentCategory !== null && filterCategoryIds.indexOf(currentCategory) !== -1);
 
 // ─── Тело ответа ─────────────────────────────────────────────────────────────
 
@@ -82,8 +159,6 @@ const isAd = (item) => {
         const valType = (item.value.type || item.value.layout || '').toLowerCase();
         if (AD_TYPES.has(valType)) return true;
         if (item.value.isAd || item.value.isBanner || item.value.isCommercial || item.value.advertising) return true;
-        // Пропускаем "VIP" бейджи на объявлениях или удаляем само объявление?
-        // Иногда item.value.badge.type == 'vip'
     }
 
     return false;
@@ -91,10 +166,8 @@ const isAd = (item) => {
 
 /**
  * Рекурсивно извлекает строковые значения текстовых полей из узла.
- * Принимает внешний массив acc — не пересоздаёт замыкание при каждом вызове.
- * Защита от циклических ссылок через visited Set.
  */
-const extractText = (node, acc, visited, depth = 0) => {
+const extractText = (node, acc, visited, depth) => {
     if (!node || typeof node !== 'object' || depth > 10) return;
     if (visited.has(node)) return;
     visited.add(node);
@@ -116,15 +189,8 @@ const extractText = (node, acc, visited, depth = 0) => {
 
 /**
  * Извлекает числовую цену из item.
- * Авито API хранит цену в разных полях в зависимости от версии:
- *   item.price                        → число или строка "200 000"
- *   item.priceDetailed.value          → число
- *   item.value.price                  → число или строка
- *   item.value.priceDetailed.value    → число
- * Возвращает число или null если цена не найдена.
  */
 const extractPrice = (item) => {
-    // Вспомогательная: достать число из значения поля
     const toNum = (v) => {
         if (typeof v === 'number') return v;
         if (typeof v === 'string') {
@@ -134,7 +200,6 @@ const extractPrice = (item) => {
         return null;
     };
 
-    // Прямые числовые поля
     const candidates = [
         item.price,
         item.priceRur,
@@ -160,7 +225,7 @@ const containsBlockedKeyword = (item, stats) => {
     if (blockedKeywords.length === 0) return false;
 
     const acc = [];
-    extractText(item, acc, new Set());
+    extractText(item, acc, new Set(), 0);
 
     if (acc.length === 0) return false;
 
@@ -170,7 +235,7 @@ const containsBlockedKeyword = (item, stats) => {
         const keyword = blockedKeywords[i];
         if (keyword && fullText.includes(keyword)) {
             const sampleTitle = item.title || (item.value && item.value.title) || acc[0] || 'No Title';
-            stats.removedTitles.push(`"${sampleTitle}" [Match: ${keyword}]`);
+            stats.removedTitles.push('"' + sampleTitle + '" [kw: ' + keyword + ']');
             return true;
         }
     }
@@ -179,32 +244,39 @@ const containsBlockedKeyword = (item, stats) => {
 
 /**
  * Определяет, нужно ли оставить элемент; обновляет статистику.
+ * Реклама убирается ВСЕГДА. kw/mp — только если категория совпадает.
  */
 const shouldKeepItem = (item, stats) => {
     stats.total++;
+
+    // Рекламу убираем ВСЕГДА, независимо от категории
     if (isAd(item)) { stats.adsRemoved++; return false; }
+
+    // kw и mp фильтры — только если shouldApplyFilters = true
+    if (!shouldApplyFilters) return true;
+
     if (containsBlockedKeyword(item, stats)) { stats.keywordsRemoved++; return false; }
+
     if (maxPrice > 0) {
         const price = extractPrice(item);
         if (price !== null && price > maxPrice) {
             stats.priceRemoved++;
             const title = item.title || (item.value && item.value.title) || 'No Title';
-            stats.removedTitles.push(`"${title}" [Price: ${price} > ${maxPrice}]`);
+            stats.removedTitles.push('"' + title + '" [price: ' + price + ' > ' + maxPrice + ']');
             return false;
         }
     }
+
     return true;
 };
 
 /**
  * Рекурсивный проход по дереву с фильтрацией всех массивов.
- * Для массива-корня мутирует его на месте через splice (сохраняет ссылку).
  */
-const cleanObject = (root, stats, depth = 0) => {
+const cleanObject = (root, stats, depth) => {
     if (!root || typeof root !== 'object' || depth > 20) return;
 
     if (Array.isArray(root)) {
-        // Итерируем с конца, чтобы splice не ломал индексы
         for (let i = root.length - 1; i >= 0; i--) {
             if (!shouldKeepItem(root[i], stats)) {
                 root.splice(i, 1);
@@ -217,8 +289,8 @@ const cleanObject = (root, stats, depth = 0) => {
 
     for (const key in root) {
         if (Array.isArray(root[key])) {
-            root[key] = root[key].filter(item => shouldKeepItem(item, stats));
-            root[key].forEach(el => cleanObject(el, stats, depth + 1));
+            root[key] = root[key].filter(function(item) { return shouldKeepItem(item, stats); });
+            root[key].forEach(function(el) { cleanObject(el, stats, depth + 1); });
         } else if (root[key] && typeof root[key] === 'object') {
             cleanObject(root[key], stats, depth + 1);
         }
@@ -238,21 +310,31 @@ try {
         removedTitles: []
     };
 
-    // Запускаем очистку
-    cleanObject(obj.result !== undefined ? obj.result : obj, stats);
+    cleanObject(obj.result !== undefined ? obj.result : obj, stats, 0);
 
-    console.log(`\n========================================`);
-    console.log(`[Avito Deep Cleaner] 🔎`);
-    console.log(`Keywords: ` + (blockedKeywords.length ? `[${blockedKeywords.join(', ')}]` : `NONE`));
-    console.log(`Max Price: ` + (maxPrice > 0 ? `${maxPrice.toLocaleString()} ₽` : `NONE`));
-    console.log(`Scanned: ${stats.total} | Ads: -${stats.adsRemoved} | Keywords: -${stats.keywordsRemoved} | Price: -${stats.priceRemoved}`);
-    if (stats.removedTitles.length > 0) {
-        console.log(`Filtered: ${stats.removedTitles.slice(0, 5).join('; ')}`);
+    // Логирование
+    console.log('\n========================================');
+    console.log('[Avito Deep Cleaner v3]');
+    console.log('Category: ' + (currentCategory !== null ? currentCategory : 'N/A') +
+        ' | Filters: ' + (shouldApplyFilters ? 'ON' : 'OFF (no cats)'));
+    if (blockedKeywords.length > 0) {
+        console.log('Keywords: [' + blockedKeywords.join(', ') + ']');
     }
-    console.log(`========================================\n`);
+    if (maxPrice > 0) {
+        console.log('Max Price: ' + maxPrice + ' rub');
+    }
+    if (filterCategoryIds.length > 0) {
+        console.log('Filter cats: [' + filterCategoryIds.join(', ') + ']' + (filterEverywhere ? ' (ALL)' : ''));
+    }
+    console.log('Scanned: ' + stats.total + ' | Ads: -' + stats.adsRemoved +
+        ' | Keywords: -' + stats.keywordsRemoved + ' | Price: -' + stats.priceRemoved);
+    if (stats.removedTitles.length > 0) {
+        console.log('Filtered: ' + stats.removedTitles.slice(0, 5).join('; '));
+    }
+    console.log('========================================\n');
 
     $done({ body: JSON.stringify(obj) });
 } catch (e) {
-    console.log(`[Avito Cleaner] Error: ${e}`);
+    console.log('[Avito Cleaner] Error: ' + e);
     $done({});
 }
