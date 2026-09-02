@@ -2,12 +2,12 @@
  * iOS 12 compatibility build. The protobuf int64 implementation deliberately
  * avoids BigInt syntax so JavaScriptCore on iOS 12 can parse this file.
  *
- * 拦截 Apple /clls/wloc 接口的回应，解 ARPC 封包，改 WiFi 热点和基站坐标，
- * 再按 Apple 的格式封回去返回给系统。
+ * Intercept Apple /clls/wloc responses, unpack ARPC wrappers, replace WiFi hotspot
+ * and Cell tower GPS coordinates, and repack into Apple-compatible format.
  *
- * 主要流程：
- *   ARPC 拆包 → protobuf 解字段 → 替换 Location 子消息的坐标/精度/运动状态
- *   → protobuf 重新打包 → 按原格式（ARPC / marker / synthetic）封回
+ * Main Pipeline:
+ *   ARPC unpack -> decode protobuf fields -> replace Location sub-message (lat/lon/accuracy)
+ *   -> re-encode protobuf -> wrap back into original envelope (ARPC / marker / synthetic)
  */
 (function () {
   "use strict";
@@ -40,9 +40,9 @@
   var APPLE_WLOC_MARKER = bytesFromArray([0x00, 0x00, 0x00, 0x01, 0x00, 0x00]);
   var ROOT_DROP_FIELDS = {};
   var CELL_RESPONSE_FIELDS = { 22: true, 24: true };
-  // 位置子消息只改写 纬度(1)/经度(2)/精度(3)，其余字段（海拔、垂直精度、
-  // 运动状态、unknown 等）一律原样透传——改写或新增的字段越多，越容易被
-  // iOS 判定为非法响应，导致 “定位不可用”。
+  // Location sub-messages only modify Latitude (1), Longitude (2), and Accuracy (3). Other fields
+  // (altitude, vertical accuracy, motion state, etc.) are passed through as-is.
+  // Over-modifying fields causes iOS validation to fail with "Location Unavailable".
   var LOCATION_REPLACED_FIELDS = { 1: true, 2: true, 3: true };
 
   function bytesFromArray(values) {
@@ -483,7 +483,7 @@
   }
 
   function coordToInt(value) {
-    // 使用 Math.trunc 精确匹配 Go: int64(coord * 1e8)
+    // Use Math.trunc to accurately match Go: int64(coord * 1e8)
     return Math.trunc(Number(value) * 100000000);
   }
 
@@ -548,9 +548,9 @@
   }
 
   function patchLocation(locationPayload, config) {
-    // 最小改写：只替换已存在的 纬度(1)/经度(2)/精度(3)，不改动、不新增任何其他字段。
-    // 若该位置子消息连纬度或经度都没有（不是我们要的目标），原样放行，避免塞数据
-    // 把响应写坏导致 iOS “定位不可用”。
+    // Minimal rewrite: only replace existing Latitude (1), Longitude (2), and Accuracy (3).
+    // If the sub-message lacks lat/lon, pass it through untouched to prevent corrupting
+    // the response and causing iOS "Location Unavailable".
     var parts = [];
     var fields = locationPayload.length ? parseFields(locationPayload) : [];
     var hasLat = false;
@@ -625,7 +625,7 @@
         parts.push(makeLengthDelimitedField(field.fieldNumber, patchCellTower(field.valueBytes, config)));
         cellCount += 1;
       } else {
-        // 根级其余字段一律原样保留，避免丢弃 iOS 校验所依赖的信息
+        // Preserve all other root fields as-is to avoid dropping verification info required by iOS
         parts.push(field.raw);
       }
     }
@@ -823,11 +823,11 @@
     };
   }
 
-  // wloc 式原始字节扫描兜底。
-  // 适用场景：iOS 26/27 beta5/beta6 及以后，Apple 若改动 /clls/wloc 响应的封装格式，
-  // 已知格式（ARPC / synthetic / marker / bare）都解析不了，脚本会直接 failOpen 放行 = 定位不生效。
-  // 此时直接在响应缓冲区里逐字节找“可改写的 WLOC protobuf”（wifi 设备 field 2 / 基站 field 22/24），
-  // 找到就把坐标改掉，并用标准 synthetic 封包返回。与 wloc 的 dist 脚本行为一致。
+    // Raw byte scanning fallback.
+  // Fallback scenario: If future iOS versions modify the /clls/wloc envelope structure and standard
+  // parsers fail, scanning the buffer directly for mutable WLOC protobuf fields (wifi field 2 / cell 22/24)
+  // allows replacing coordinates and wrapping into a standard synthetic response.
+  // Matches dist script behavior.
   function scanPatchAppleWLoc(responseBytes, config) {
     if (!responseBytes || responseBytes.length < 8) {
       throw new Error("body too short for raw scan: " + (responseBytes ? responseBytes.length : 0));
@@ -927,7 +927,7 @@
       strictError = new Error("no patchable location fields via " + extraction.kind);
     }
 
-    // 已知封装格式都匹配/改不到 → 原始字节扫描兜底（应对 iOS 26/27 beta5/beta6 响应封装变化）
+    // Standard envelopes did not match -> Raw byte scan fallback
     var raw = scanPatchAppleWLoc(responseBytes, config);
     return {
       response: raw.response,
