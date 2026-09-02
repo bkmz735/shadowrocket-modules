@@ -184,7 +184,7 @@ const detectCategoryFromUrl = (url) => {
 const urlCategory = detectCategoryFromUrl(requestUrl);
 
 /**
- * Проверяет категорию конкретного item (по categoryId, verticalId, или сигнатурам вакансий).
+ * Проверяет категорию конкретного item (по uri_mweb, categoryId, verticalId, или сигнатурам вакансий).
  */
 const detectCategoryFromItem = (item) => {
     if (!item || typeof item !== 'object') return null;
@@ -193,37 +193,44 @@ const detectCategoryFromItem = (item) => {
     const target = item.item || item.value || item;
     if (typeof target !== 'object') return null;
 
-    // 1. Сигнатуры вакансий в полях объекта
-    if (target.jobRknDisclaimer || target.jobVacancy || target.salary || target.salaryValue || target.compensation) {
+    // 1. Проверяем URL/ссылку карточки (самый надёжный маркер в Авито: uri_mweb: "/sterlitamak/vakansii/...")
+    const uri = String(target.uri_mweb || target.uri || target.url || item.uri_mweb || item.uri || item.url || '').toLowerCase();
+    if (uri.includes('/vakansii') || uri.includes('/podrabotka')) return 111;
+    if (uri.includes('/avtomobili') || uri.includes('/transport')) return 4;
+    if (uri.includes('/kvartiry') || uri.includes('/nedvizhimost') || uri.includes('/kommercheskaya_nedvizhimost')) return 2;
+    if (uri.includes('/uslugi')) return 114;
+    if (uri.includes('/rezume')) return 112;
+
+    // 2. Сигнатуры вакансий в полях объекта
+    if (target.jobRknDisclaimer || target.jobVacancy || target.salary || target.salaryValue || target.compensation || target.trackVacanciesSurvey) {
         return 111;
     }
 
-    // 2. Сигнатуры вакансий по тексту в subTitle / title (типично для вакансий на главной: "260 000 ₽ в месяц", "за смену", "за час")
+    // 3. Сигнатуры вакансий по тексту в subTitle / title
     const sub = String(target.subTitle || target.subtitle || item.subTitle || item.subtitle || '').toLowerCase();
     const title = String(target.title || item.title || '').toLowerCase();
     
     if (sub.includes('в месяц') || sub.includes('за смену') || sub.includes('за час') || sub.includes('до вычета') || sub.includes('на руки') || sub.includes('за день') || sub.includes('за неделю')) {
-        return 111; // Вакансия
+        return 111;
     }
-    if (title.startsWith('вакансия') || title.includes('требуется') || title.includes('водитель') || title.includes('курьер') || title.includes('грузчик') || title.includes('оператор') || title.includes('сборщик')) {
-        // Если это название типичной вакансии и есть зарплата
-        if (sub.includes('₽') || sub.includes('руб')) {
+    if (title.startsWith('вакансия') || title.includes('требуется') || title.includes('водитель') || title.includes('курьер') || title.includes('грузчик') || title.includes('оператор') || title.includes('сборщик') || title.includes('охранник')) {
+        if (sub.includes('₽') || sub.includes('руб') || (target.price && String(target.price).includes('₽'))) {
             return 111;
         }
     }
 
-    // 3. Прямой categoryId
+    // 4. Прямой categoryId
     if (target.categoryId) return parseInt(target.categoryId, 10);
     if (item.categoryId) return parseInt(item.categoryId, 10);
 
-    // 4. verticalId (jobs -> 111, auto -> 4, real_estate -> 2, services -> 114)
+    // 5. verticalId (jobs -> 111, auto -> 4, real_estate -> 2, services -> 114)
     const vert = (target.verticalId || item.verticalId || '').toLowerCase();
     if (vert === 'jobs' || vert === 'job') return 111;
     if (vert === 'auto' || vert === 'transport') return 4;
     if (vert === 'realty' || vert === 'real_estate') return 2;
     if (vert === 'services' || vert === 'service') return 114;
 
-    // 5. В analyticParams (часто в Авито: analyticParams.categoryId)
+    // 6. В analyticParams (часто в Авито: analyticParams.categoryId)
     const ap = target.analyticParams || item.analyticParams;
     if (ap && typeof ap === 'object') {
         if (ap.categoryId) return parseInt(ap.categoryId, 10);
@@ -300,18 +307,24 @@ const extractText = (node, acc, visited, depth) => {
 };
 
 /**
- * Извлекает числовую цену/зарплату из item.
- * В вакансиях Авито часто хранит зарплату в subTitle: "260 000 ₽" или salary: 260000
+ * Извлекает максимальное число цены/зарплаты из строки (поддерживает диапазоны: "233 000 — 449 000 ₽ на руки").
  */
 const extractPrice = (item) => {
     const toNum = (v) => {
         if (typeof v === 'number') return v;
         if (typeof v === 'string') {
-            // Ищем паттерн цены: "260 000 ₽", "от 260000", "260000 руб"
-            const match = v.replace(/\s/g, '').match(/(\d{3,9})/);
-            if (match) {
-                const n = parseInt(match[1], 10);
-                return isNaN(n) ? null : n;
+            // Удаляем неразрывные пробелы \u00A0 и обычные пробелы
+            const clean = v.replace(/[\s\u00A0_]/g, '');
+            // Ищем все числа от 3 цифр (например "233000" и "449000")
+            const matches = clean.match(/\d{3,9}/g);
+            if (matches && matches.length > 0) {
+                // Возвращаем максимальное найденное число в строке (для проверки верхней границы)
+                let maxFound = 0;
+                for (let i = 0; i < matches.length; i++) {
+                    const parsed = parseInt(matches[i], 10);
+                    if (parsed > maxFound) maxFound = parsed;
+                }
+                return maxFound > 0 ? maxFound : null;
             }
         }
         return null;
@@ -332,13 +345,10 @@ const extractPrice = (item) => {
         target.compensation,
         target.priceDetailed && target.priceDetailed.value,
         target.priceDetailed && target.priceDetailed.string,
-        // Зарплата часто пишется в subTitle / title
         target.subTitle,
         target.subtitle,
         item.subTitle,
-        item.subtitle,
-        target.title,
-        item.title
+        item.subtitle
     ];
 
     for (let i = 0; i < candidates.length; i++) {
