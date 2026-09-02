@@ -1052,21 +1052,26 @@
     }
 
     var pairs = argument.split(/[&;]/);
-    for (var j = 0; j < pairs.length; j += 1) {
-      var part = pairs[j];
-      if (!part) {
-        continue;
-      }
-      var eq = part.indexOf("=");
-      var key = eq >= 0 ? part.slice(0, eq) : part;
-      var value = eq >= 0 ? part.slice(eq + 1) : "true";
-      try {
-        result[decodeURIComponent(key)] = decodeURIComponent(value);
-      } catch (err2) {
-        result[key] = value;
-      }
-    }
-    return result;
+        var positional = [];
+        for (var j = 0; j < pairs.length; j += 1) {
+          var part = pairs[j];
+          if (!part) continue;
+          var eq = part.indexOf("=");
+          if (eq >= 0) {
+            var key = part.slice(0, eq);
+            var value = part.slice(eq + 1);
+            try { result[decodeURIComponent(key)] = decodeURIComponent(value); } catch (err2) { result[key] = value; }
+          } else {
+            try { positional.push(decodeURIComponent(part)); } catch (errPos) { positional.push(part); }
+          }
+        }
+        if (positional.length > 0) {
+          if (result["город"] === undefined && result.city === undefined && positional[0]) result["город"] = positional[0];
+          if (result["широта"] === undefined && result.latitude === undefined && positional[1]) result["широта"] = positional[1];
+          if (result["долгота"] === undefined && result.longitude === undefined && positional[2]) result["долгота"] = positional[2];
+          if (result["высотава"] === undefined && result.altitude === undefined && positional[3]) result["высота"] = positional[3];
+        }
+        return result;
   }
 
   function resolveConfigUrl(args) {
