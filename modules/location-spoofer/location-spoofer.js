@@ -2034,7 +2034,7 @@
                 var alertTitle = "Location Spoofer: " + (config.city ? config.city.toUpperCase() : "CUSTOM");
                 var alertSub = "Координаты: " + config.latitude.toFixed(4) + ", " + config.longitude.toFixed(4) + " (" + config.altitude + " м)";
                 var alertBody = "arg: " + rawArg.slice(0, 100);
-                notifAlert.post(alertTitle, alertSub, alertBody);
+                // notifAlert.post(alertTitle, alertSub, alertBody);
               }
     } catch (eDebugNotif) {}
           prepareResponseBody(config);
