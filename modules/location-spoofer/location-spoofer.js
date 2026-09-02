@@ -566,15 +566,20 @@ var DEFAULT_CONFIG = {
 
     cfg.enabled = parseBoolean(cfg.enabled, true);
     cfg.failOpen = parseBoolean(cfg.failOpen, true);
-            var rawCity = (input && (input["город"] || input.city)) || cfg.city || cfg["город"] || "custom";
+    var rawCity = "";
+    if (input && input["город"] !== undefined) rawCity = input["город"];
+    else if (input && input.city !== undefined) rawCity = input.city;
+    else if (cfg["город"] !== undefined) rawCity = cfg["город"];
+    else if (cfg.city !== undefined) rawCity = cfg.city;
     try { rawCity = decodeURIComponent(rawCity); } catch (e) {}
-    cfg.city = String(rawCity).trim().toLowerCase();
+    cfg.city = String(rawCity || "").trim().toLowerCase();
 
     if (cfg["широта"] !== undefined) cfg.latitude = cfg["широта"];
     if (cfg["долгота"] !== undefined) cfg.longitude = cfg["долгота"];
     if (cfg["высота"] !== undefined) cfg.altitude = cfg["высота"];
 
-    if (cfg.city && cfg.city !== "custom" && cfg.city !== "вручную") {
+    var isManual = !cfg.city || cfg.city === "custom" || cfg.city === "вручную" || cfg.city === "none" || cfg.city === "-";
+    if (!isManual) {
       if (CITY_PRESETS[cfg.city]) {
         cfg.latitude = CITY_PRESETS[cfg.city].lat;
         cfg.longitude = CITY_PRESETS[cfg.city].lon;
