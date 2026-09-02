@@ -24,11 +24,11 @@
     city: "custom",
     enabled: true,
     mode: "response",
-    latitude: 55.7558,
-    longitude: 37.6173,
+    latitude: 37.3349,
+    longitude: -122.00902,
     horizontalAccuracy: 39,
     verticalAccuracy: 1000,
-    altitude: 156,
+    altitude: 72,
     unknownValue4: 3,
     motionActivityType: 63,
     motionActivityConfidence: 467,
@@ -1103,7 +1103,7 @@
       return enrichArgsFromPluginStore(out);
     }
  
-  function logScriptArguments(debug) {}
+  
  function detectRuntime() {
     if (typeof $environment !== "undefined" && $environment && $environment.product) {
       return String($environment.product);
@@ -1120,148 +1120,6 @@
 
   function isGzipBytes(bytes) {
     return bytes && bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
-  }
-
-  function readGeocodeCache() {
-    if (typeof $persistentStore === "undefined" || !$persistentStore.read) {
-      return null;
-    }
-    try {
-      var raw = $persistentStore.read("location_spoofer_geocode");
-      return raw ? JSON.parse(raw) : null;
-    } catch (err) {
-      return null;
-    }
-  }
-
-  function writeGeocodeCache(entry) {
-    if (typeof $persistentStore === "undefined" || !$persistentStore.write) {
-      return;
-    }
-    try {
-      $persistentStore.write("location_spoofer_geocode", JSON.stringify(entry));
-    } catch (err) {
-      // ignore cache write failures
-    }
-  }
-
-  function fetchElevation(lat, lng, callback) {
-    if (typeof $httpClient === "undefined" || !$httpClient.get) {
-      callback(null);
-      return;
-    }
-    var url =
-      "https://api.open-meteo.com/v1/elevation?latitude=" +
-      encodeURIComponent(String(lat)) +
-      "&longitude=" +
-      encodeURIComponent(String(lng));
-    $httpClient.get({ url: url, timeout: 4000 }, function (error, response, body) {
-      if (error || !body) {
-        callback(null);
-        return;
-      }
-      try {
-        var data = JSON.parse(body);
-        if (data && data.elevation && data.elevation.length) {
-          callback(Math.round(Number(data.elevation[0])));
-          return;
-        }
-      } catch (err) {
-        // ignore parse failures
-      }
-      callback(null);
-    });
-  }
-
-  function geocodeAddress(address, debug, callback) {
-    var query = String(address || "").trim();
-    if (!query) {
-      callback(null);
-      return;
-    }
-
-    var cached = readGeocodeCache();
-    if (cached && cached.address === query && Number.isFinite(Number(cached.latitude)) && Number.isFinite(Number(cached.longitude))) {
-      if (debug) {
-        console.log("Location spoofer geocode cache hit: " + query + " -> " + cached.latitude + "," + cached.longitude);
-      }
-      callback(cached);
-      return;
-    }
-
-    if (typeof $httpClient === "undefined" || !$httpClient.get) {
-      if (debug) {
-        console.log("Location spoofer geocode skipped: $httpClient unavailable");
-      }
-      callback(null);
-      return;
-    }
-
-    var url =
-      "https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=0&q=" +
-      encodeURIComponent(query);
-    $httpClient.get(
-      {
-        url: url,
-        timeout: 8000,
-        headers: { "User-Agent": "ios-location-spoofer/1.0 (Loon plugin)" }
-      },
-      function (error, response, body) {
-        if (error || !body) {
-          if (debug) {
-            console.log("Location spoofer geocode failed: " + (error || "empty body"));
-          }
-          callback(null);
-          return;
-        }
-        try {
-          var results = JSON.parse(body);
-          if (!results || !results.length) {
-            if (debug) {
-              console.log("Location spoofer geocode no result for: " + query);
-            }
-            callback(null);
-            return;
-          }
-          var hit = results[0];
-          var lat = Number(hit.lat);
-          var lng = Number(hit.lon);
-          if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-            callback(null);
-            return;
-          }
-          var entry = {
-            address: query,
-            latitude: lat,
-            longitude: lng,
-            displayName: hit.display_name || query
-          };
-          fetchElevation(lat, lng, function (altitude) {
-            if (altitude != null) {
-              entry.altitude = altitude;
-            }
-            writeGeocodeCache(entry);
-            if (debug) {
-              console.log(
-                "Location spoofer geocode resolved: " +
-                  query +
-                  " -> " +
-                  lat +
-                  "," +
-                  lng +
-                  (altitude != null ? ", alt=" + altitude : "")
-              );
-            }
-            callback(entry);
-          });
-        } catch (err) {
-          if (debug) {
-            console.log("Location spoofer geocode parse failed: " + err.message);
-          }
-          callback(null);
-        }
-      }
-    );
   }
 
   function mergeConfig(base, extra) {
@@ -1333,219 +1191,10 @@
     return cfg;
   }
 
-  function readRemoteConfigCache(url) {
-    if (!url || typeof $persistentStore === "undefined" || !$persistentStore.read) {
-      return null;
-    }
-    try {
-      var raw = $persistentStore.read("location_spoofer_remote_cfg");
-      if (!raw) {
-        return null;
-      }
-      var entry = JSON.parse(raw);
-      if (!entry || entry.url !== url || !entry.data) {
-        return null;
-      }
-      if (Date.now() - entry.ts > 300000) {
-        return null;
-      }
-      return entry.data;
-    } catch (err) {
-      return null;
-    }
-  }
-
-  function writeRemoteConfigCache(url, data) {
-    if (!url || typeof $persistentStore === "undefined" || !$persistentStore.write) {
-      return;
-    }
-    try {
-      $persistentStore.write(
-        "location_spoofer_remote_cfg",
-        JSON.stringify({ url: url, data: data, ts: Date.now() })
-      );
-    } catch (err) {
-      // ignore cache write failures
-    }
-  }
-
-  function fetchRemoteConfig(url, timeout, debug, callback) {
-    if (!url || typeof $httpClient === "undefined" || !$httpClient.get) {
-      callback(null, "http client unavailable");
-      return;
-    }
-    $httpClient.get({ url: url, timeout: timeout || 3000 }, function (error, response, body) {
-      if (error || !body) {
-        callback(null, error || "empty body");
-        return;
-      }
-      try {
-        callback(JSON.parse(body), null);
-      } catch (err) {
-        callback(null, err.message);
-      }
-    });
-  }
-
-  function refreshRemoteConfigCache(url, debug) {
-    fetchRemoteConfig(url, 5000, debug, function (data, err) {
-      if (data) {
-        writeRemoteConfigCache(url, data);
-        return;
-      }
-      if (debug) {
-        console.log("Location spoofer remote config refresh failed: " + err);
-      }
-    });
-  }
-
-  function applyAddressFromCache(cfg, address, debug) {
-    if (!address) {
-      return;
-    }
-    var cached = readGeocodeCache();
-    if (cached && cached.address === address && Number.isFinite(Number(cached.latitude)) && Number.isFinite(Number(cached.longitude))) {
-      cfg.latitude = cached.latitude;
-      cfg.longitude = cached.longitude;
-      if (cached.altitude != null) {
-        cfg.altitude = cached.altitude;
-      }
-      if (debug) {
-        console.log("Location spoofer geocode cache hit: " + address);
-      }
-      return;
-    }
-    if (debug) {
-      console.log("Location spoofer geocode cache miss: " + address + " (use manual lat/lng until cron refreshes)");
-    }
-  }
-
-  function loadRuntimeConfigSync() {
+  function loadRuntimeConfig(callback) {
     var args = readScriptArguments();
     var cfg = mergeConfig(DEFAULT_CONFIG, configFromArgs(args));
-    var configUrl = resolveConfigUrl(args);
-    var debug = parseBoolean(cfg.debug, false);
-    var address = String(args.address || "").trim();
-
-    applyAddressFromCache(cfg, address, debug);
-
-    if (configUrl) {
-      var remoteCfg = readRemoteConfigCache(configUrl);
-      if (remoteCfg) {
-        cfg = mergeConfig(cfg, remoteCfg);
-        if (debug) {
-          console.log(
-            "Location spoofer remote config cache hit -> " +
-              remoteCfg.latitude +
-              "," +
-              remoteCfg.longitude
-          );
-        }
-      }
-    }
-
-    return { cfg: cfg, configUrl: configUrl, debug: debug };
-  }
-
-  function loadRuntimeConfig(callback) {
-    var loaded = loadRuntimeConfigSync();
-    var cfg = loaded.cfg;
-    var configUrl = loaded.configUrl;
-    var debug = loaded.debug;
-
-    function finish() {
-      try {
-        callback(normalizeConfig(cfg));
-      } catch (err) {
-        if (debug) {
-          console.log("Location spoofer config invalid: " + err.message + " | cfg lat/lng=" + cfg.latitude + "," + cfg.longitude);
-        }
-        if (!Number.isFinite(Number(cfg.latitude)) || !Number.isFinite(Number(cfg.longitude))) {
-          cfg.latitude = DEFAULT_CONFIG.latitude;
-          cfg.longitude = DEFAULT_CONFIG.longitude;
-        }
-        callback(normalizeConfig(cfg));
-      }
-    }
-
-    logScriptArguments(debug);
-
-    
-    if (!configUrl) {
-      finish();
-      return;
-    }
-
-    if (readRemoteConfigCache(configUrl)) {
-      refreshRemoteConfigCache(configUrl, debug);
-      finish();
-      return;
-    }
-
-    if (debug) {
-      console.log("Location spoofer remote config fetching: " + configUrl);
-    }
-    fetchRemoteConfig(configUrl, 3000, debug, function (data, err) {
-      if (data) {
-        writeRemoteConfigCache(configUrl, data);
-        cfg = mergeConfig(cfg, data);
-        if (debug) {
-          console.log(
-            "Location spoofer remote config loaded -> " + data.latitude + "," + data.longitude
-          );
-        }
-      } else if (debug) {
-        console.log("Location spoofer remote config fetch failed: " + err + " (using manual lat/lng)");
-      }
-      finish();
-    });
-  }
-
-  function runMaintenanceCron() {
-    var args = readScriptArguments();
-    var debug = parseBoolean(args.debug, false);
-    var pending = 0;
-
-    function maybeDone() {
-      pending -= 1;
-      if (pending <= 0) {
-        $done({});
-      }
-    }
-
-    var configUrl = resolveConfigUrl(args);
-    if (configUrl) {
-      pending += 1;
-      fetchRemoteConfig(configUrl, 8000, debug, function (data, err) {
-        if (data) {
-          writeRemoteConfigCache(configUrl, data);
-          if (debug) {
-            console.log(
-              "Location spoofer config cron cached -> " + data.latitude + "," + data.longitude
-            );
-          }
-        } else if (debug) {
-          console.log("Location spoofer config cron failed: " + err);
-        }
-        maybeDone();
-      });
-    }
-
-    var address = String(args.address || "").trim();
-    if (address) {
-      pending += 1;
-      geocodeAddress(address, debug, function () {
-        maybeDone();
-      });
-    }
-
-    if (pending === 0) {
-      $done({});
-    }
-  }
-
-  function runGeocodeCron() {
-    runMaintenanceCron();
+    callback(normalizeConfig(cfg));
   }
 
   function headersWithBinaryBody(sourceHeaders, length) {
@@ -1983,7 +1632,7 @@
     var hasResponse = typeof $response !== "undefined" && $response != null;
 
     if (!hasRequest && !hasResponse) {
-      runMaintenanceCron();
+      $done({});
       return;
     }
 
@@ -2027,16 +1676,7 @@
             donePassThrough();
             return;
           }
-              try {
-      var notifAlert = (typeof $notification !== "undefined") ? $notification : null;
-              if (notifAlert) {
-                var rawArg = (typeof $argument !== "undefined") ? String($argument) : "<UNDEFINED>";
-                var alertTitle = "Location Spoofer: " + (config.city ? config.city.toUpperCase() : "CUSTOM");
-                var alertSub = "Координаты: " + config.latitude.toFixed(4) + ", " + config.longitude.toFixed(4) + " (" + config.altitude + " м)";
-                var alertBody = "arg: " + rawArg.slice(0, 100);
-                // notifAlert.post(alertTitle, alertSub, alertBody);
-              }
-    } catch (eDebugNotif) {}
+              
           prepareResponseBody(config);
           continueResponseRewrite(config);
           return;
@@ -2134,7 +1774,6 @@
     spoofAppleResponse: spoofAppleResponse,
     parseArgumentString: parseArgumentString,
     readScriptArguments: readScriptArguments,
-    geocodeAddress: geocodeAddress,
     prepareRequestHeaders: prepareRequestHeaders
   };
 
