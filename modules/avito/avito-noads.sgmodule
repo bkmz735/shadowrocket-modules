@@ -6,11 +6,11 @@
 #!arguments-desc=слова:Стоп-слова (|),цена:Цена ₽ (от 5000 до 200000 / 200000 / 0=выкл),категории:Категории (вакансии|резюме|услуги|авто|все),город:Только свой город (1/0)
 
 [Script]
-# Фильтрация ответов: реклама + kw/mp в выбранных категориях
-Avito_AdBlock = type=http-response,pattern=^https?:\/\/app\.avito\.ru\/api\/.*(?:items|catalog|search|recommendations|widgets).*$,requires-body=1,max-size=524288,argument=kw:{{{слова}}};mp:{{{цена}}};cats:{{{категории}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito_cleaner.js
+# Фильтрация ответов: реклама + kw/mp в выбранных категориях (до 1 МБ)
+Avito_AdBlock = type=http-response,pattern=^https?:\/\/app\.avito\.ru\/api\/.*$,requires-body=1,max-size=1048576,argument=kw:{{{слова}}};mp:{{{цена}}};cats:{{{категории}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito_cleaner.js
 
 # Принудительный приоритет своего города в запросах
-Avito_LocalPriority = type=http-request,pattern=^https?:\/\/app\.avito\.ru\/api\/.*(?:items|search|catalog|recommendations).*$,argument={{{город}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito_local.js
+Avito_LocalPriority = type=http-request,pattern=^https?:\/\/app\.avito\.ru\/api\/.*$,argument={{{город}}},script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito_local.js
 
 [Rule]
 # Аналитика и трекеры
