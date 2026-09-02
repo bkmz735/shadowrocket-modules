@@ -1,23 +1,28 @@
 #!name=Spotify Traffic Sniffer
-#!desc=Глубокий анализ всех запросов и ответов Spotify без перегрузки памяти с нормализацией URL (срез :443).
+#!desc=Глубокий анализ всех запросов и ответов Spotify без перегрузки памяти с нормализацией URL (срез :443). Трафик через PROXY.
 #!category=Sniffer
 
 [Rule]
-# Направляем весь трафик Spotify напрямую
-DOMAIN-KEYWORD,spotify,DIRECT
-DOMAIN-SUFFIX,scdn.co,DIRECT
-DOMAIN-SUFFIX,pscdn.co,DIRECT
-DOMAIN-SUFFIX,spoti.fi,DIRECT
-DOMAIN-SUFFIX,spotifycdn.com,DIRECT
-DOMAIN-SUFFIX,spotifycdn.net,DIRECT
-DOMAIN-SUFFIX,akamaized.net,DIRECT
+# Направляем весь трафик Spotify через PROXY
+DOMAIN-KEYWORD,spotify,PROXY
+DOMAIN-SUFFIX,scdn.co,PROXY
+DOMAIN-SUFFIX,pscdn.co,PROXY
+DOMAIN-SUFFIX,spoti.fi,PROXY
+DOMAIN-SUFFIX,spotifycdn.com,PROXY
+DOMAIN-SUFFIX,spotifycdn.net,PROXY
+DOMAIN-SUFFIX,akamaized.net,PROXY
+
+[Header Rewrite]
+# Удаление заголовков кэширования для получения полных ответов от серверов Spotify
+^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/.* header-del If-None-Match
+^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/.* header-del If-Modified-Since
 
 [Script]
-# Сниффер запросов (Request): нормализует URL (:443 срез) и логирует без тяжелых буферов
-Spotify_Req_Sniffer = type=http-request,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/.*$,requires-body=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=10
+# Сниффер запросов: срезает :443, удаляет кэш и логирует параметры (исключен extended-metadata во избежание OOM)
+Spotify_Req_Sniffer = type=http-request,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(user-customization|bootstrap|device-capabilities|capping-api|social-connect|connect-state|connect-group|color-lyrics|scrollsita|casita|browsita|artistview|album-entity|ad-logic|ads|remote-config-resolver|storage-resolve|playplay|pam-view-service|net-fortune|image-resolve|herodotus|offline|pushka-tokens|speechless|partner-userid|partner-client-integrations|gander|contribution|inspiredby-mix|premium-destination-hubs|sessiontransfer),requires-body=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=10
 
-# Сниффер ответов (Response): логирует статусы и ошибки без удержания тяжелых тел
-Spotify_Res_Sniffer = type=http-response,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/.*$,requires-body=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=10
+# Сниффер ответов: логирует статусы, размер и тип ответа без накопления тяжелых буферов
+Spotify_Res_Sniffer = type=http-response,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(user-customization|bootstrap|device-capabilities|capping-api|social-connect|connect-state|connect-group|color-lyrics|scrollsita|casita|browsita|artistview|album-entity|ad-logic|ads|remote-config-resolver|storage-resolve|playplay|pam-view-service|net-fortune|image-resolve|herodotus|offline|pushka-tokens|speechless|partner-userid|partner-client-integrations|gander|contribution|inspiredby-mix|premium-destination-hubs|sessiontransfer),requires-body=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=10
 
 [MITM]
 # Исключаем login5, apresolve и CDN из MITM, чтобы не ломать SSL Pinning

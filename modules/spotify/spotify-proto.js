@@ -40,50 +40,56 @@ if(resStatus !== 200) {
 }
 
 function processMapObj(accountAttributesMapObj){
-    // accountAttributesMapObj['is-eligible-premium-unboxing'] = {boolValue : true};
-    // accountAttributesMapObj['feature-set-id-masked'] = {stringValue : 'dd6ef0c22c'};
-    accountAttributesMapObj['smart-shuffle'] = {stringValue : 'AVAILABLE'};
-    accountAttributesMapObj['is-euterpe'] = {boolValue : true};
-    accountAttributesMapObj['has-audiobooks-subscription'] = {boolValue : true};
+    // Разблокировка Premium функционала и UI
     accountAttributesMapObj['type'] = {stringValue : 'premium'};
-    accountAttributesMapObj['payments-initial-campaign'] = {stringValue : 'prepaid'};
+    accountAttributesMapObj['catalogue'] = {stringValue : 'premium'};
+    accountAttributesMapObj['player-license'] = {stringValue : 'premium'};
+    accountAttributesMapObj['name'] = {stringValue : 'Spotify Premium'};
+    accountAttributesMapObj['on-demand'] = {boolValue : true};
+    accountAttributesMapObj['unrestricted'] = {boolValue : true};
+    accountAttributesMapObj['shuffle'] = {boolValue : false};
+    accountAttributesMapObj['pick-and-shuffle'] = {boolValue : false};
+    accountAttributesMapObj['smart-shuffle'] = {stringValue : 'AVAILABLE'};
+    accountAttributesMapObj['shuffle-algorithm'] = {stringValue : 'RANDOM'};
+    accountAttributesMapObj['ads'] = {boolValue : false};
+    accountAttributesMapObj['nft-disabled'] = {stringValue : '1'};
 
+    // 🎵 Фикс дропа треков на 8-й секунде (защита от DRM отказа на 320 kbps):
+    // Устанавливаем стабильный High-bitrate поток (160 kbps OGG/AAC), для которого сервер отдает DRM-ключи без сброса сессии
+    accountAttributesMapObj['audio-quality'] = {stringValue : '0'};
+    accountAttributesMapObj['high-bitrate'] = {boolValue : false};
+    accountAttributesMapObj['loudness-levels'] = {stringValue : '1:-5.0,0.0,3.0:-2.0'};
+
+    // Социальные сессии и Jam
+    accountAttributesMapObj['social-session'] = {boolValue : true};
+    accountAttributesMapObj['jam-social-session'] = {stringValue : 'EXPANDED'};
+    accountAttributesMapObj['social-session-free-tier'] = {boolValue : false};
+
+    // Продление подписки (текущая дата + 1 месяц)
     const expireDate = new Date();
     expireDate.setMonth(expireDate.getMonth() + 1);
     const endDateStr = expireDate.toISOString().split('.')[0] + "Z";
     accountAttributesMapObj['subscription-enddate'] = {stringValue : endDateStr};
-    accountAttributesMapObj['social-session-free-tier'] = {boolValue : false};
-    accountAttributesMapObj['can_use_superbird'] = {boolValue : true};
-    accountAttributesMapObj['jam-social-session'] = {stringValue : 'EXPANDED'};
-    accountAttributesMapObj['offline'] = {boolValue : true};
-    accountAttributesMapObj['audio-quality'] = {stringValue : '1'};
-    accountAttributesMapObj['shuffle-algorithm'] = {stringValue : 'RANDOM'};
-    accountAttributesMapObj['is-thalia'] = {boolValue : true};
-    accountAttributesMapObj['shuffle'] = {boolValue : false};
-    accountAttributesMapObj['is-pigeon'] = {boolValue : true};
-    // 主页右下角的会员广告tab
-    accountAttributesMapObj['nft-disabled'] = {stringValue : '1'};
-    accountAttributesMapObj['libspotify'] = {boolValue : true};
-    accountAttributesMapObj['high-bitrate'] = {boolValue : true};
-    accountAttributesMapObj['unrestricted'] = {boolValue : true};
-    accountAttributesMapObj['catalogue'] = {stringValue : 'premium'};
-    accountAttributesMapObj['your-library-tags'] = {boolValue : true};
-    accountAttributesMapObj['ads'] = {boolValue : false};
-    accountAttributesMapObj['on-demand'] = {boolValue : true};
-    accountAttributesMapObj['name'] = {stringValue : 'Spotify Premium'};
-    accountAttributesMapObj['loudness-levels'] = {stringValue : '1:-5.0,0.0,3.0:-2.0'};
     accountAttributesMapObj['product-expiry'] = {stringValue : endDateStr};
-    accountAttributesMapObj['social-session'] = {boolValue : true};
-    accountAttributesMapObj['pick-and-shuffle'] = {boolValue : false};
-    accountAttributesMapObj['offline-backup'] = {stringValue : 'UNRESTRICTED'};
+
+    // Дополнительные возможности
     accountAttributesMapObj['lyrics-offline'] = {boolValue : true};
-    // accountAttributesMapObj['financial-product'] = {stringValue : 'pr:premium,tc:0,rt:v2_US_default_epay-digital-10-USD-1m_10.0_USD_default'};
-    accountAttributesMapObj['financial-product'] = {stringValue : 'pr:premium,tc:0'};
-    accountAttributesMapObj['streaming-rules'] = {stringValue : ''};
+    accountAttributesMapObj['offline'] = {boolValue : true};
+    accountAttributesMapObj['offline-backup'] = {stringValue : 'UNRESTRICTED'};
     accountAttributesMapObj['mixing-tools'] = {stringValue : 'EDIT'};
     accountAttributesMapObj['mobile'] = {boolValue : true};
-    accountAttributesMapObj['player-license'] = {stringValue : 'premium'};
-    // 决定customize是否有效 有的用户没有此属性
+    accountAttributesMapObj['libspotify'] = {boolValue : true};
+    accountAttributesMapObj['can_use_superbird'] = {boolValue : true};
+    accountAttributesMapObj['is-euterpe'] = {boolValue : true};
+    accountAttributesMapObj['is-thalia'] = {boolValue : true};
+    accountAttributesMapObj['is-pigeon'] = {boolValue : true};
+    accountAttributesMapObj['has-audiobooks-subscription'] = {boolValue : true};
+    accountAttributesMapObj['your-library-tags'] = {boolValue : true};
+    accountAttributesMapObj['payments-initial-campaign'] = {stringValue : 'prepaid'};
+    accountAttributesMapObj['financial-product'] = {stringValue : 'pr:premium,tc:0'};
+    accountAttributesMapObj['streaming-rules'] = {stringValue : ''};
+
+    // Валидность UCS доставки
     accountAttributesMapObj['com.spotify.madprops.use.ucs.product.state'] = {boolValue : true};
     accountAttributesMapObj['com.spotify.madprops.delivered.by.ucs'] = {boolValue : true};
 }

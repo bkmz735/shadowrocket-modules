@@ -15,19 +15,40 @@ if (url.includes(".com:443")) {
 }
 
 function getCategory(targetUrl) {
-    if (/audio-ak-|audio-fa|\.scdn\.co\/audio\/|\.spotifycdn\.(com|net)\/audio|storage-resolve|audio-attributes/i.test(targetUrl)) {
-        return "🎵 AUDIO";
+    if (/storage-resolve|audio-ak-|audio-fa|\.scdn\.co\/audio\/|\.spotifycdn\.(com|net)\/audio|audio-attributes/i.test(targetUrl)) {
+        return "🎵 AUDIO-RESOLVE";
     }
-    if (/bootstrap|user-customization|pam-view|identity|melody|dealer|apresolve|login5|token|refresh/i.test(targetUrl)) {
-        return "🔑 AUTH";
+    if (/playplay\/v1\/key/i.test(targetUrl)) {
+        return "🔐 DRM-KEY";
     }
-    if (/ad-logic|ads|\/log\/|crashdump|event-service|telemetry|analytics/i.test(targetUrl)) {
+    if (/bootstrap|user-customization|device-capabilities|pam-view|identity|melody|dealer|apresolve|login5|token|refresh|remote-config|accountsettings|premium-destination-hubs|pushka-tokens/i.test(targetUrl)) {
+        return "🔑 AUTH/PROFILE";
+    }
+    if (/social-connect|connect-state|connect-group|speechless/i.test(targetUrl)) {
+        return "🤝 CONNECT/JAM";
+    }
+    if (/capping-api/i.test(targetUrl)) {
+        return "⚠️ CAPPING";
+    }
+    if (/ad-logic|ads|\/log\/|crashdump|event-service|telemetry|analytics|podcast-ap4p|partner-userid|gabo-receiver-service/i.test(targetUrl)) {
         return "📊 ADS";
     }
-    if (/artistview|album-entity|playlist|search|track-view|decorate|casita|browsita/i.test(targetUrl)) {
-        return "📑 META";
+    if (/color-lyrics/i.test(targetUrl)) {
+        return "🎤 LYRICS";
     }
-    if (/image|cover|avatar|mosaic|pickasso/i.test(targetUrl)) {
+    if (/herodotus/i.test(targetUrl)) {
+        return "⏱ RESUME-POINT";
+    }
+    if (/net-fortune/i.test(targetUrl)) {
+        return "📈 NET-SPEED";
+    }
+    if (/offline/i.test(targetUrl)) {
+        return "💾 OFFLINE-CACHE";
+    }
+    if (/artistview|album-entity|playlist|search|track-view|decorate|casita|browsita|scrollsita|user-profile|inspiredby-mix|gander|contribution|partner-client-integrations|hub2/i.test(targetUrl)) {
+        return "📑 META/UI";
+    }
+    if (/image|cover|avatar|mosaic|pickasso|daylist/i.test(targetUrl)) {
         return "🖼 IMG";
     }
     return "🌐 OTHER";
@@ -39,17 +60,20 @@ const now = new Date().toISOString().replace("T", " ").substr(11, 12);
 if (!isResponse) {
     const headers = $request.headers || {};
     const rangeHeader = headers["Range"] || headers["range"] || null;
-    const ifNoneMatch = headers["If-None-Match"] || headers["if-none-match"] || null;
     const auth = (headers["Authorization"] || headers["authorization"]) ? "YES" : "NO";
 
-    console.log(`🔵 [REQ] [${now}] [${tag}] [${method}] Auth:${auth} Range:${rangeHeader || "none"} IfNone:${ifNoneMatch || "none"} -> ${url}`);
+    // Принудительно удаляем кэш-заголовки из запроса
+    delete headers["If-None-Match"];
+    delete headers["if-none-match"];
+    delete headers["If-Modified-Since"];
+    delete headers["if-modified-since"];
 
-    if (modifiedUrl !== url) {
-        console.log(`✂️ Normalized URL (:443 removed) -> ${modifiedUrl}`);
-        $done({ url: modifiedUrl });
-    } else {
-        $done({});
-    }
+    console.log(`🔵 [REQ] [${now}] [${tag}] [${method}] Auth:${auth} Range:${rangeHeader || "none"} -> ${modifiedUrl}`);
+
+    $done({
+        url: modifiedUrl,
+        headers: headers
+    });
 } else {
     const status = $response.status || $response.statusCode || 200;
     const headers = $response.headers || {};
