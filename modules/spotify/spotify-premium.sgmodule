@@ -1,23 +1,29 @@
 #!name=Spotify Premium
-#!desc=Разблокировка функций Spotify Premium, блокировка рекламы и фикс сброса сессий/треков. Трафик направляется через PROXY.
+#!desc=Разблокировка функций Spotify Premium, блокировка рекламы и гибридная маршрутизация (API через PROXY, аудио-потоки напрямую через DIRECT).
 #!category=Spotify
 
 [Rule]
-# Блокировка рекламы и логов (без затрагивания аудио-потоков и CDN)
+# 1. Блокировка рекламы, аналитики и промо-баннеров
 DOMAIN,crashdump.spotify.com,REJECT
 DOMAIN,log.spotify.com,REJECT
 DOMAIN,adlogic.spotify.com,REJECT
 DOMAIN-SUFFIX,scorecardresearch.com,REJECT
 URL-REGEX,^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(ad-logic|ads|podcast-ap4p\/.*\/ads|partner-userid|gabo-receiver-service|vanilla|pendragon|trials-facade|sponsoredplaylist)\/,REJECT
 
-# Полный список аудио-CDN и доменов Spotify направляется через PROXY
+# 2. Аудио-потоки, CDN и WebSocket Dealer -> DIRECT (максимальная скорость, защита от обрывов на 8-10 сек)
+DOMAIN,gew1-dealer.g2.spotify.com,DIRECT
+DOMAIN-SUFFIX,dealer.spotify.com,DIRECT
+DOMAIN-SUFFIX,scdn.co,DIRECT
+DOMAIN-SUFFIX,pscdn.co,DIRECT
+DOMAIN-SUFFIX,spotifycdn.com,DIRECT
+DOMAIN-SUFFIX,spotifycdn.net,DIRECT
+DOMAIN-SUFFIX,akamaized.net,DIRECT
+
+# 3. Авторизация, сессия и API шлюзы -> PROXY (соответствие региону аккаунта)
+DOMAIN,login5.spotify.com,PROXY
+DOMAIN,apresolve.spotify.com,PROXY
+DOMAIN-KEYWORD,spclient,PROXY
 DOMAIN-KEYWORD,spotify,PROXY
-DOMAIN-SUFFIX,scdn.co,PROXY
-DOMAIN-SUFFIX,pscdn.co,PROXY
-DOMAIN-SUFFIX,spoti.fi,PROXY
-DOMAIN-SUFFIX,spotifycdn.com,PROXY
-DOMAIN-SUFFIX,spotifycdn.net,PROXY
-DOMAIN-SUFFIX,akamaized.net,PROXY
 
 [Header Rewrite]
 ^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/.* header-del If-None-Match
