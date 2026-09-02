@@ -62,6 +62,9 @@ function processMapObj(accountAttributesMapObj){
     accountAttributesMapObj['is-eligible-premium-unboxing'] = {boolValue : false};
     accountAttributesMapObj['audiobooks-in-tier-upsell'] = {boolValue : false};
     accountAttributesMapObj['premium-popup'] = {boolValue : false};
+    accountAttributesMapObj['brand-ad'] = {boolValue : false};
+    accountAttributesMapObj['ad-configurations'] = {stringValue : ''};
+    accountAttributesMapObj['sponsored-content'] = {boolValue : false};
 
     // 🎵 Фикс дропа треков на 8-й секунде (защита от DRM отказа на 320 kbps):
     // Устанавливаем стабильный High-bitrate поток (160 kbps OGG/AAC), для которого сервер отдает DRM-ключи без сброса сессии
