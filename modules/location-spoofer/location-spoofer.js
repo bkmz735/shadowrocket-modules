@@ -1001,191 +1001,106 @@
     };
   }
 
-  function parseArgumentString(argument) {
-    var result = {};
-    if (!argument || typeof argument !== "string") {
+  function parseArgumentString(raw) {
+      var result = {};
+      if (!raw) return result;
+      var str = String(raw).trim();
+      if (!str) return result;
+  
+      // 1. Direct city check
+      var directCity = str;
+      try { directCity = decodeURIComponent(str); } catch (e0) {}
+      if (lookupCity(directCity)) {
+        result["город"] = directCity;
+        return result;
+      }
+  
+      // 2. Delimiter parsing
+      var parts = str.split(/[&;,]/);
+      var positional = [];
+      for (var i = 0; i < parts.length; i += 1) {
+        var item = parts[i].trim();
+        if (!item) continue;
+        var eq = item.indexOf("=");
+        if (eq < 0) eq = item.indexOf(":");
+        if (eq >= 0) {
+          var k = item.slice(0, eq).trim();
+          var v = item.slice(eq + 1).trim();
+          try { k = decodeURIComponent(k); } catch (e1) {}
+          try { v = decodeURIComponent(v); } catch (e2) {}
+          result[k] = v;
+          result[k.toLowerCase()] = v;
+        } else {
+          var val = item;
+          try { val = decodeURIComponent(val); } catch (e3) {}
+          positional.push(val);
+        }
+      }
+  
+      // 3. Scan positional for city
+      for (var j = 0; j < positional.length; j += 1) {
+        var posVal = positional[j];
+        if (!isPlaceholderValue(posVal) && lookupCity(posVal)) {
+          result["город"] = posVal;
+          break;
+        }
+      }
+  
+      if (positional.length > 0 && !result["город"]) {
+        if (!isPlaceholderValue(positional[0])) result["город"] = positional[0];
+        if (positional[1] && !isPlaceholderValue(positional[1])) result["широта"] = positional[1];
+        if (positional[2] && !isPlaceholderValue(positional[2])) result["долгота"] = positional[2];
+        if (positional[3] && !isPlaceholderValue(positional[3])) result["высота"] = positional[3];
+      }
       return result;
     }
-
-    var tailKeys = [
-      "debug",
-      "mode",
-      "enabled",
-      "latitude",
-      "longitude",
-      "город",
-      "широта",
-      "долгота",
-      "высота",
-      "city",
-      "altitude",
-      "address",
-      "configHost",
-      "configToken",
-      "horizontalAccuracy",
-      "verticalAccuracy",
-      "unknownValue4",
-      "motionActivityType",
-      "motionActivityConfidence",
-      "failOpen",
-      "dumpRaw",
-      "dumpHeaders",
-      "prepareHeaders",
-      "rawLimit"
-    ];
-    var configUrlKey = "configUrl=";
-    var configUrlIdx = argument.indexOf(configUrlKey);
-    if (configUrlIdx >= 0) {
-      var valueStart = configUrlIdx + configUrlKey.length;
-      var tail = argument.slice(valueStart);
-      var end = -1;
-      var i;
-      for (i = 0; i < tailKeys.length; i += 1) {
-        var marker = "&" + tailKeys[i] + "=";
-        var pos = tail.indexOf(marker);
-        if (pos >= 0 && (end < 0 || pos < end)) {
-          end = pos;
-        }
-      }
-      var configUrlValue = end >= 0 ? tail.slice(0, end) : tail;
+  
+    function resolveConfigUrl(args) { return ""; }
+  
+    function isPlaceholderValue(value) {
+      if (typeof value !== "string") return false;
+      var v = value.trim();
+      return /^\{[^}]+\}$/.test(v) || /^\([^)]+\)$/.test(v) || /^%7B.*%7D$/i.test(v) || (v.indexOf("город") >= 0 && (v.charAt(0) === "{" || v.charAt(0) === "("));
+    }
+  
+    function readPluginStoreArg(name) {
+      if (typeof $persistentStore === "undefined" || !$persistentStore.read) return null;
       try {
-        result.configUrl = decodeURIComponent(configUrlValue);
-      } catch (err) {
-        result.configUrl = configUrlValue;
-      }
-      argument = argument.slice(0, configUrlIdx) + (end >= 0 ? tail.slice(end + 1) : "");
+        var val = $persistentStore.read(name);
+        return (val == null || val === "") ? null : String(val);
+      } catch (e) { return null; }
     }
-
-    var pairs = argument.split(/[&;]/);
-        var positional = [];
-        for (var j = 0; j < pairs.length; j += 1) {
-          var part = pairs[j];
-          if (!part) continue;
-          var eq = part.indexOf("=");
-          if (eq >= 0) {
-            var key = part.slice(0, eq);
-            var value = part.slice(eq + 1);
-            try { result[decodeURIComponent(key)] = decodeURIComponent(value); } catch (err2) { result[key] = value; }
-          } else {
-            try { positional.push(decodeURIComponent(part)); } catch (errPos) { positional.push(part); }
+  
+    function enrichArgsFromPluginStore(args) {
+      args = args || {};
+      var keys = ["город", "city", "широта", "latitude", "долгота", "longitude", "высота", "altitude"];
+      for (var i = 0; i < keys.length; i += 1) {
+        var k = keys[i];
+        if (args[k] == null || args[k] === "" || isPlaceholderValue(args[k])) {
+          var stored = readPluginStoreArg(k);
+          if (stored != null && !isPlaceholderValue(stored)) args[k] = stored;
+        }
+      }
+      return args;
+    }
+  
+    function readScriptArguments() {
+      var out = {};
+      if (typeof $argument !== "undefined" && $argument != null) {
+        if (typeof $argument === "string") {
+          out = parseArgumentString($argument);
+        } else if (typeof $argument === "object") {
+          for (var k in $argument) {
+            if (Object.prototype.hasOwnProperty.call($argument, k)) {
+              out[k] = $argument[k] == null ? "" : String($argument[k]);
+            }
           }
         }
-        if (positional.length > 0) {
-          if (result["город"] === undefined && result.city === undefined && positional[0]) result["город"] = positional[0];
-          if (result["широта"] === undefined && result.latitude === undefined && positional[1]) result["широта"] = positional[1];
-          if (result["долгота"] === undefined && result.longitude === undefined && positional[2]) result["долгота"] = positional[2];
-          if (result["высотава"] === undefined && result.altitude === undefined && positional[3]) result["высота"] = positional[3];
-        }
-        return result;
-  }
-
-  function resolveConfigUrl(args) {
-    args = args || {};
-    var direct = String(args.configUrl || args.cfg || args.url || "").trim();
-    if (direct) {
-      return direct;
-    }
-    var host = String(args.configHost || "").trim().replace(/\/+$/, "");
-    var token = String(args.configToken || "").trim();
-    if (host && token) {
-      return host + "/loc.json?token=" + encodeURIComponent(token);
-    }
-    return "";
-  }
-
-  function isPlaceholderValue(value) {
-    return typeof value === "string" && /^\{[^}]+\}$/.test(value.trim());
-  }
-
-  function readPluginStoreArg(name) {
-    if (typeof $persistentStore === "undefined" || !$persistentStore.read) {
-      return null;
-    }
-    try {
-      var value = $persistentStore.read(name);
-      if (value == null || value === "") {
-        return null;
       }
-      return String(value);
-    } catch (err) {
-      return null;
+      return enrichArgsFromPluginStore(out);
     }
-  }
-
-  function enrichArgsFromPluginStore(args) {
-    var keys = [
-      "enabled",
-      "latitude",
-      "longitude",
-      "город",
-      "широта",
-      "долгота",
-      "высота",
-      "city",
-      "altitude",
-      "address",
-      "configHost",
-      "configToken",
-      "configUrl",
-      "debug"
-    ];
-    var i;
-    args = args || {};
-    for (i = 0; i < keys.length; i += 1) {
-      var key = keys[i];
-      var current = args[key];
-      if (current == null || current === "" || isPlaceholderValue(current)) {
-        var stored = readPluginStoreArg(key);
-        if (stored != null && !isPlaceholderValue(stored)) {
-          args[key] = stored;
-        }
-      }
-    }
-    return args;
-  }
-
-  function readScriptArguments() {
-    var out = {};
-    if (typeof $argument !== "undefined" && $argument != null) {
-      if (typeof $argument === "string") {
-        out = parseArgumentString($argument);
-      } else if (typeof $argument === "object") {
-        var key;
-        for (key in $argument) {
-          if (Object.prototype.hasOwnProperty.call($argument, key)) {
-            var value = $argument[key];
-            out[key] = value == null ? "" : String(value);
-          }
-        }
-      } else {
-        out = parseArgumentString(String($argument));
-      }
-    }
-    return enrichArgsFromPluginStore(out);
-  }
-
-  function logScriptArguments(debug) {
-    if (!debug) {
-      return;
-    }
-    var args = readScriptArguments();
-    var raw =
-      typeof $argument === "undefined" || $argument == null
-        ? "<none>"
-        : typeof $argument === "object"
-          ? JSON.stringify($argument)
-          : String($argument);
-    console.log("Location spoofer $argument raw: " + raw);
-    console.log(
-      "Location spoofer args parsed: lat=" +
-        args.latitude +
-        ", lng=" +
-        args.longitude +
-        ", configUrl=" +
-        (resolveConfigUrl(args) || "<none>")
-    );
-  }
-
+  
+    function logScriptArguments(debug) {}
   function detectRuntime() {
     if (typeof $environment !== "undefined" && $environment && $environment.product) {
       return String($environment.product);
@@ -2111,14 +2026,13 @@
           }
               try {
       var notifAlert = (typeof $notification !== "undefined") ? $notification : null;
-      if (notifAlert) {
-        var alertTitle = "[DEBUG] Location Spoofer";
-        var rawArg = (typeof $argument !== "undefined") ? String($argument) : "<UNDEFINED>";
-                var alertSub = "city: " + (config.city || "empty") + " | lat: " + config.latitude.toFixed(2);
+              if (notifAlert) {
+                var rawArg = (typeof $argument !== "undefined") ? String($argument) : "<UNDEFINED>";
+                var alertTitle = "Location Spoofer: " + (config.city ? config.city.toUpperCase() : "CUSTOM");
+                var alertSub = "Координаты: " + config.latitude.toFixed(4) + ", " + config.longitude.toFixed(4) + " (" + config.altitude + " м)";
                 var alertBody = "arg: " + rawArg.slice(0, 100);
-        var alertBody = "Перехвачен URL: " + (($request && $request.url) ? $request.url.slice(0, 50) : "none");
-        notifAlert.post(alertTitle, alertSub, alertBody);
-      }
+                notifAlert.post(alertTitle, alertSub, alertBody);
+              }
     } catch (eDebugNotif) {}
           prepareResponseBody(config);
           continueResponseRewrite(config);
