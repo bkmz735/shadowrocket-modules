@@ -66,10 +66,7 @@ function processMapObj(accountAttributesMapObj){
     accountAttributesMapObj['ad-configurations'] = {stringValue : ''};
     accountAttributesMapObj['sponsored-content'] = {boolValue : false};
 
-    // 🎵 Фикс дропа треков на 8-й секунде (защита от DRM отказа на 320 kbps):
-    // Устанавливаем стабильный High-bitrate поток (160 kbps OGG/AAC), для которого сервер отдает DRM-ключи без сброса сессии
-    accountAttributesMapObj['audio-quality'] = {stringValue : '0'};
-    accountAttributesMapObj['high-bitrate'] = {boolValue : false};
+    // 🎵 Нормализация громкости (битрейт и качество звука отдаем на выбор самому приложению и серверу)
     accountAttributesMapObj['loudness-levels'] = {stringValue : '1:-5.0,0.0,3.0:-2.0'};
 
     // Социальные сессии и Jam
