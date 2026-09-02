@@ -193,23 +193,37 @@ const detectCategoryFromItem = (item) => {
     const target = item.item || item.value || item;
     if (typeof target !== 'object') return null;
 
-    // 1. Сигнатуры вакансий (100% вакансия)
-    if (target.jobRknDisclaimer || target.jobVacancy || target.salary || target.salaryValue) {
+    // 1. Сигнатуры вакансий в полях объекта
+    if (target.jobRknDisclaimer || target.jobVacancy || target.salary || target.salaryValue || target.compensation) {
         return 111;
     }
 
-    // 2. Прямой categoryId
+    // 2. Сигнатуры вакансий по тексту в subTitle / title (типично для вакансий на главной: "260 000 ₽ в месяц", "за смену", "за час")
+    const sub = String(target.subTitle || target.subtitle || item.subTitle || item.subtitle || '').toLowerCase();
+    const title = String(target.title || item.title || '').toLowerCase();
+    
+    if (sub.includes('в месяц') || sub.includes('за смену') || sub.includes('за час') || sub.includes('до вычета') || sub.includes('на руки') || sub.includes('за день') || sub.includes('за неделю')) {
+        return 111; // Вакансия
+    }
+    if (title.startsWith('вакансия') || title.includes('требуется') || title.includes('водитель') || title.includes('курьер') || title.includes('грузчик') || title.includes('оператор') || title.includes('сборщик')) {
+        // Если это название типичной вакансии и есть зарплата
+        if (sub.includes('₽') || sub.includes('руб')) {
+            return 111;
+        }
+    }
+
+    // 3. Прямой categoryId
     if (target.categoryId) return parseInt(target.categoryId, 10);
     if (item.categoryId) return parseInt(item.categoryId, 10);
 
-    // 3. verticalId (jobs -> 111, auto -> 4, real_estate -> 2, services -> 114)
+    // 4. verticalId (jobs -> 111, auto -> 4, real_estate -> 2, services -> 114)
     const vert = (target.verticalId || item.verticalId || '').toLowerCase();
     if (vert === 'jobs' || vert === 'job') return 111;
     if (vert === 'auto' || vert === 'transport') return 4;
     if (vert === 'realty' || vert === 'real_estate') return 2;
     if (vert === 'services' || vert === 'service') return 114;
 
-    // 4. В analyticParams (часто в Авито: analyticParams.categoryId)
+    // 5. В analyticParams (часто в Авито: analyticParams.categoryId)
     const ap = target.analyticParams || item.analyticParams;
     if (ap && typeof ap === 'object') {
         if (ap.categoryId) return parseInt(ap.categoryId, 10);
