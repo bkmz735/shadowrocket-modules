@@ -1,0 +1,21 @@
+#!name=Spotify Premium
+#!desc=Разблокировка функций Spotify Premium и блокировка рекламы для Shadowrocket (SR). Трафик направляется напрямую (DIRECT).
+#!category=Spotify
+
+[Rule]
+AND,((DOMAIN-SUFFIX,spotify.com), (PROTOCOL,UDP)),REJECT
+URL-REGEX,^https?:\/\/(.*-ad-logic.*|.*ads-ak-ent.*|ads-ak-spotify-com\.akamaized\.net|crashdump\.spotify\.com|log\.spotify\.com|spclient\.wg\.spotify\.com\/(ad-logic|ads))\/,REJECT
+DOMAIN-KEYWORD,spotify,DIRECT
+DOMAIN-SUFFIX,scdn.co,DIRECT
+DOMAIN-SUFFIX,pscdn.co,DIRECT
+DOMAIN-SUFFIX,spoti.fi,DIRECT
+
+[Header Rewrite]
+^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/user-customization-service\/v1\/customize header-del If-None-Match
+
+[Script]
+spotify-json = type=http-request,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(artistview\/v1\/artist|album-entity-view\/v2\/album)\/,requires-body=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify-json.js,timeout=10
+spotify-proto = type=http-response,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(bootstrap\/v1\/bootstrap|user-customization-service\/v1\/customize)$,requires-body=1,binary-body-mode=1,max-size=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify-proto.js,timeout=10
+
+[MITM]
+hostname = %APPEND% spclient.wg.spotify.com, *-spclient.spotify.com, *.spotify.com
