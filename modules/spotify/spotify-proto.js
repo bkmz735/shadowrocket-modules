@@ -54,6 +54,15 @@ function processMapObj(accountAttributesMapObj){
     accountAttributesMapObj['ads'] = {boolValue : false};
     accountAttributesMapObj['nft-disabled'] = {stringValue : '1'};
 
+    // 🚫 Блокировка спонсорских плейлистов (FILTR и др.), партнерских баннеров и апселла
+    accountAttributesMapObj['commercial'] = {boolValue : false};
+    accountAttributesMapObj['unlimited-unpartnered'] = {boolValue : true};
+    accountAttributesMapObj['can_use_upsell'] = {boolValue : false};
+    accountAttributesMapObj['upsell'] = {stringValue : 'none'};
+    accountAttributesMapObj['is-eligible-premium-unboxing'] = {boolValue : false};
+    accountAttributesMapObj['audiobooks-in-tier-upsell'] = {boolValue : false};
+    accountAttributesMapObj['premium-popup'] = {boolValue : false};
+
     // 🎵 Фикс дропа треков на 8-й секунде (защита от DRM отказа на 320 kbps):
     // Устанавливаем стабильный High-bitrate поток (160 kbps OGG/AAC), для которого сервер отдает DRM-ключи без сброса сессии
     accountAttributesMapObj['audio-quality'] = {stringValue : '0'};
