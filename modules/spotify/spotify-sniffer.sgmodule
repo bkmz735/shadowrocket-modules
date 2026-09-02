@@ -1,5 +1,5 @@
 #!name=Spotify Traffic Sniffer
-#!desc=Глубокий анализ всех запросов, ответов, чанков аудио, лицензий и сессий Spotify для диагностики и реверс-инжиниринга (с исключением login5 и CDN из MITM).
+#!desc=Глубокий анализ всех запросов и ответов Spotify без перегрузки памяти с нормализацией URL (срез :443).
 #!category=Sniffer
 
 [Rule]
@@ -13,12 +13,12 @@ DOMAIN-SUFFIX,spotifycdn.net,DIRECT
 DOMAIN-SUFFIX,akamaized.net,DIRECT
 
 [Script]
-# Сниффер запросов (Request) только для разрешенных MITM хостов
-Spotify_Req_Sniffer = type=http-request,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com).*$,requires-body=1,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=30
+# Сниффер запросов (Request): нормализует URL (:443 срез) и логирует без тяжелых буферов
+Spotify_Req_Sniffer = type=http-request,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/.*$,requires-body=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=10
 
-# Сниффер ответов (Response)
-Spotify_Res_Sniffer = type=http-response,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com).*$,requires-body=1,max-size=2097152,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=30
+# Сниффер ответов (Response): логирует статусы и ошибки без удержания тяжелых тел
+Spotify_Res_Sniffer = type=http-response,pattern=^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/.*$,requires-body=0,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/spotify/spotify_sniffer.js,timeout=10
 
 [MITM]
-# Исключаем *.spotify.com, login5 и *.spotifycdn.com, чтобы не ломать SSL Pinning и загрузку
+# Исключаем login5, apresolve и CDN из MITM, чтобы не ломать SSL Pinning
 hostname = %APPEND% spclient.wg.spotify.com, *-spclient.spotify.com, -login5.spotify.com, -*.spotifycdn.com, -*.scdn.co, -apresolve.spotify.com
