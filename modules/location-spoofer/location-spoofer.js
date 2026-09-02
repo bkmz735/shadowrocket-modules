@@ -552,7 +552,7 @@
       if (preset) {
         cfg.latitude = preset.lat;
         cfg.longitude = preset.lon;
-        if (preset.alt !== undefined && cfg["высота"] === undefined && input.altitude === undefined) {
+        if (preset.alt !== undefined) {
           cfg.altitude = preset.alt;
         }
       } else {
