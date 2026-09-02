@@ -1,10 +1,10 @@
-﻿#!name=Avito Traffic Inspector
+#!name=Avito Traffic Inspector
 #!desc=Сниффер и дампер JSON-структуры запросов и ответов Avito для Shadowrocket (iOS)
 #!category=Sniffer
 
 [Script]
 # Перехват и дампинг структуры API выдачи, ленты, поиска и карточек
-Avito_Dump = type=http-response,pattern=^https?:\/\/.*\.avito\.ru\/.*,requires-body=1,max-size=0,script-path=avito_dump.js
+Avito_Dump = type=http-response,pattern=^https?:\/\/app\.avito\.ru\/api\/.*$,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/avito/avito_dump.js
 
 [MITM]
-hostname = %APPEND% *.avito.ru, *.aviton.ru, api.avito.ru, m.avito.ru
+hostname = %APPEND% app.avito.ru
