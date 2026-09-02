@@ -2109,6 +2109,15 @@
             donePassThrough();
             return;
           }
+              try {
+      var notifAlert = (typeof $notification !== "undefined") ? $notification : null;
+      if (notifAlert) {
+        var alertTitle = "[DEBUG] Location Spoofer";
+        var alertSub = "Город: " + (config.city || "ручной") + " | " + config.latitude.toFixed(4) + ", " + config.longitude.toFixed(4);
+        var alertBody = "Перехвачен URL: " + (($request && $request.url) ? $request.url.slice(0, 50) : "none");
+        notifAlert.post(alertTitle, alertSub, alertBody);
+      }
+    } catch (eDebugNotif) {}
           prepareResponseBody(config);
           continueResponseRewrite(config);
           return;
