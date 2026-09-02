@@ -8,7 +8,7 @@ DOMAIN,crashdump.spotify.com,REJECT
 DOMAIN,log.spotify.com,REJECT
 DOMAIN,adlogic.spotify.com,REJECT
 DOMAIN-SUFFIX,scorecardresearch.com,REJECT
-URL-REGEX,^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(ad-logic|ads|podcast-ap4p\/.*\/ads|partner-userid|gabo-receiver-service|vanilla|pendragon|trials-facade|sponsoredplaylist|capping-api|premium-destination-hubs|pam-view-service|event-service)\/,REJECT
+URL-REGEX,^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(ad-logic|ads|podcast-ap4p\/.*\/ads|partner-userid|gabo-receiver-service|vanilla|pendragon|trials-facade|sponsoredplaylist|capping-api|event-service)\/,REJECT
 
 # 2. Аудио-потоки, CDN и WebSocket Dealer -> DIRECT (максимальная скорость, защита от обрывов на 8-10 сек)
 DOMAIN,gew1-dealer.g2.spotify.com,DIRECT
