@@ -1002,89 +1002,92 @@
   }
 
   function parseArgumentString(raw) {
-      var result = {};
-      if (!raw) return result;
-      var str = String(raw).trim();
-      if (!str) return result;
-  
-      // 1. Direct city check
-      var directCity = str;
-      try { directCity = decodeURIComponent(str); } catch (e0) {}
-      if (lookupCity(directCity)) {
-        result["город"] = directCity;
-        return result;
-      }
-  
-      // 2. Delimiter parsing
-      var parts = str.split(/[&;,]/);
-      var positional = [];
-      for (var i = 0; i < parts.length; i += 1) {
-        var item = parts[i].trim();
-        if (!item) continue;
-        var eq = item.indexOf("=");
-        if (eq < 0) eq = item.indexOf(":");
-        if (eq >= 0) {
-          var k = item.slice(0, eq).trim();
-          var v = item.slice(eq + 1).trim();
-          try { k = decodeURIComponent(k); } catch (e1) {}
-          try { v = decodeURIComponent(v); } catch (e2) {}
-          result[k] = v;
-          result[k.toLowerCase()] = v;
-        } else {
-          var val = item;
-          try { val = decodeURIComponent(val); } catch (e3) {}
-          positional.push(val);
-        }
-      }
-  
-      // 3. Scan positional for city
-      for (var j = 0; j < positional.length; j += 1) {
-        var posVal = positional[j];
-        if (!isPlaceholderValue(posVal) && lookupCity(posVal)) {
-          result["город"] = posVal;
-          break;
-        }
-      }
-  
-      if (positional.length > 0 && !result["город"]) {
-        if (!isPlaceholderValue(positional[0])) result["город"] = positional[0];
-        if (positional[1] && !isPlaceholderValue(positional[1])) result["широта"] = positional[1];
-        if (positional[2] && !isPlaceholderValue(positional[2])) result["долгота"] = positional[2];
-        if (positional[3] && !isPlaceholderValue(positional[3])) result["высота"] = positional[3];
-      }
-      return result;
-    }
-  
-    function resolveConfigUrl(args) { return ""; }
-  
-    function isPlaceholderValue(value) {
-      if (typeof value !== "string") return false;
-      var v = value.trim();
-      return /^\{[^}]+\}$/.test(v) || /^\([^)]+\)$/.test(v) || /^%7B.*%7D$/i.test(v) || (v.indexOf("город") >= 0 && (v.charAt(0) === "{" || v.charAt(0) === "("));
-    }
-  
-    function readPluginStoreArg(name) {
-      if (typeof $persistentStore === "undefined" || !$persistentStore.read) return null;
-      try {
-        var val = $persistentStore.read(name);
-        return (val == null || val === "") ? null : String(val);
-      } catch (e) { return null; }
-    }
-  
-    function enrichArgsFromPluginStore(args) {
-      args = args || {};
-      var keys = ["город", "city", "широта", "latitude", "долгота", "longitude", "высота", "altitude"];
-      for (var i = 0; i < keys.length; i += 1) {
-        var k = keys[i];
-        if (args[k] == null || args[k] === "" || isPlaceholderValue(args[k])) {
-          var stored = readPluginStoreArg(k);
-          if (stored != null && !isPlaceholderValue(stored)) args[k] = stored;
-        }
-      }
-      return args;
-    }
-  
-    function readScriptArguments() {
+     var result = {};
+     if (!raw) return result;
+     var str = String(raw).trim();
+     if (!str) return result;
+ 
+     var directDec = str;
+     try { directDec = decodeURIComponent(str); } catch (e0) {}
+     if (lookupCity(directDec)) {
+       result[city] = directDec;
+       result[город] = directDec;
+       return result;
+     }
+ 
+     var parts = str.split(/[&;,\r\n]/);
+     var positional = [];
+     for (var i = 0; i < parts.length; i += 1) {
+       var item = parts[i].trim();
+       if (!item) continue;
+       var eq = item.indexOf("=");
+       if (eq < 0) eq = item.indexOf(":");
+       if (eq >= 0) {
+         var k = item.slice(0, eq).trim();
+         var v = item.slice(eq + 1).trim();
+         try { k = decodeURIComponent(k); } catch (e1) {}
+         try { v = decodeURIComponent(v); } catch (e2) {}
+         result[k] = v;
+         result[k.toLowerCase()] = v;
+         if (k === "lat" || k === "latitude" || k === "широта") { result.latitude = v; result["широта"] = v; }
+         if (k === "lon" || k === "lng" || k === "longitude" || k === "долгота") { result.longitude = v; result["долгота"] = v; }
+         if (k === "alt" || k === "altitude" || k === "высота") { result.altitude = v; result["высота"] = v; }
+         if (k === "city" || k === "город") { result.city = v; result["город"] = v; }
+       } else {
+         var val = item;
+         try { val = decodeURIComponent(val); } catch (e3) {}
+         positional.push(val);
+       }
+     }
+ 
+     for (var j = 0; j < positional.length; j += 1) {
+       var posVal = positional[j];
+       if (!isPlaceholderValue(posVal) && lookupCity(posVal)) {
+         result[city] = posVal;
+         result[город] = posVal;
+         break;
+       }
+     }
+ 
+     if (positional.length > 0 && !result[city] && !result[город]) {
+       if (!isPlaceholderValue(positional[0])) { result.city = positional[0]; result[город] = positional[0]; }
+       if (positional[1] && !isPlaceholderValue(positional[1])) { result.latitude = positional[1]; result[широта] = positional[1]; }
+       if (positional[2] && !isPlaceholderValue(positional[2])) { result.longitude = positional[2]; result[долгота] = positional[2]; }
+       if (positional[3] && !isPlaceholderValue(positional[3])) { result.altitude = positional[3]; result[высота] = positional[3]; }
+     }
+     return result;
+   }
+ 
+   function resolveConfigUrl(args) { return ""; }
+ 
+  function isPlaceholderValue(value) {
+  if (typeof value !== "string") return false;
+  var v = value.trim();
+  return /^\{[^}]+\}$/.test(v) || /^\([^)]+\)$/.test(v) || /^%7B.*%7D$/i.test(v) || (v.indexOf("город") >= 0 && (v.charAt(0) === "{" || v.charAt(0) === "("));
+  }
+ 
+  function readPluginStoreArg(name) {
+  if (typeof $persistentStore === undefined || !$persistentStore.read) return null;
+  try {
+  var val = $persistentStore.read(name);
+  return (val == null || val === "") ? null : String(val);
+  } catch (e) { return null; }
+  }
+ 
+  function enrichArgsFromPluginStore(args) {
+  args = args || {};
+  var keys = [город, city, широта, latitude, долгота, longitude, высота, altitude];
+  for (var i = 0; i < keys.length; i += 1) {
+  var k = keys[i];
+  if (args[k] == null || args[k] === "" || isPlaceholderValue(args[k])) {
+  var stored = readPluginStoreArg(k);
+  if (stored != null && !isPlaceholderValue(stored)) args[k] = stored;
+  }
+  }
+  return args;
+  }
+ 
+  function readScriptArguments() {
       var out = {};
       if (typeof $argument !== "undefined" && $argument != null) {
         if (typeof $argument === "string") {
@@ -1092,16 +1095,16 @@
         } else if (typeof $argument === "object") {
           for (var k in $argument) {
             if (Object.prototype.hasOwnProperty.call($argument, k)) {
-              out[k] = $argument[k] == null ? "" : String($argument[k]);
+              out[k] = ($argument[k] == null) ? "" : String($argument[k]);
             }
           }
         }
       }
       return enrichArgsFromPluginStore(out);
     }
-  
-    function logScriptArguments(debug) {}
-  function detectRuntime() {
+ 
+  function logScriptArguments(debug) {}
+ function detectRuntime() {
     if (typeof $environment !== "undefined" && $environment && $environment.product) {
       return String($environment.product);
     }
