@@ -8,7 +8,7 @@ DOMAIN,crashdump.spotify.com,REJECT
 DOMAIN,log.spotify.com,REJECT
 DOMAIN,adlogic.spotify.com,REJECT
 DOMAIN-SUFFIX,scorecardresearch.com,REJECT
-URL-REGEX,^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(ad-logic|ads|podcast-ap4p\/.*\/ads|partner-userid|gabo-receiver-service|vanilla\/.*\/recommendations-in-free-tier-playlist)\/,REJECT
+URL-REGEX,^https?:\/\/(spclient\.wg\.spotify\.com|.*-spclient\.spotify\.com)(:443)?\/(ad-logic|ads|podcast-ap4p\/.*\/ads|partner-userid|gabo-receiver-service|vanilla|pendragon|trials-facade|sponsoredplaylist)\/,REJECT
 
 # Полный список аудио-CDN и доменов Spotify направляется через PROXY
 DOMAIN-KEYWORD,spotify,PROXY
