@@ -194,8 +194,8 @@ UcsResponseWrapper (для /user-customization-service/v1/customize)
 | **`pick-and-shuffle`** | `true` | `{boolValue: false}` | Убирает интерфейсные ограничения "Pick & Shuffle". |
 | **`smart-shuffle`** | `"UNAVAILABLE"` | `{stringValue: 'AVAILABLE'}` | Включает умное перемешивание с рекомендациями (Smart Shuffle). |
 | **`unrestricted`** | `false` | `{boolValue: true}` | Снимает лимит 6 пропусков треков в час (неограниченные скипы). |
-| **`high-bitrate`** | `false` | `{boolValue: false}` | Защита от принудительного 320k (предотвращает отказ сервера в выдаче DRM-ключа). |
-| **`audio-quality`** | `"0"` | `{stringValue: '0'}` | Стабильный поток высокого качества (160 kbps OGG/AAC) без 8-секундного дропа. |
+| **`high-bitrate`** | `false` | `{boolValue: true}` | Разблокирует в настройках качество звука **"Очень высокое" (320 kbps)**. |
+| **`audio-quality`** | `"0"` | `{stringValue: '1'}` | Активирует высокое качество аудио-потока по умолчанию. |
 | **`loudness-levels`** | `""` | `{stringValue: '1:-5.0,0.0,3.0:-2.0'}` | Включает нормализацию громкости (Quiet / Normal / Loud). |
 | **`offline`** | `false` | `{boolValue: true}` | Разрешает интерфейсу отображать переключатели оффлайн-режима. |
 | **`offline-backup`** | `""` | `{stringValue: 'UNRESTRICTED'}` | Доступ к оффлайн-кэшированию треков. |

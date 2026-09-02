@@ -66,7 +66,9 @@ function processMapObj(accountAttributesMapObj){
     accountAttributesMapObj['ad-configurations'] = {stringValue : ''};
     accountAttributesMapObj['sponsored-content'] = {boolValue : false};
 
-    // 🎵 Нормализация громкости (битрейт и качество звука отдаем на выбор самому приложению и серверу)
+    // 🎵 Качество аудиопотока и битрейт
+    accountAttributesMapObj['audio-quality'] = {stringValue : '1'};
+    accountAttributesMapObj['high-bitrate'] = {boolValue : true};
     accountAttributesMapObj['loudness-levels'] = {stringValue : '1:-5.0,0.0,3.0:-2.0'};
 
     // Социальные сессии и Jam
