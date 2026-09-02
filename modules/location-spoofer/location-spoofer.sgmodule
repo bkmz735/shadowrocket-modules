@@ -7,7 +7,6 @@
 #!arguments-desc=город: Название города (москва, питер, спб, киев, минск, алматы, астана, тбилиси, ереван, дубай, лондон, токио, купертино, вручную)\nширота: Широта точки (используется если город не заполнен или "вручную", например 55.7558)\nдолгота: Долгота точки (используется если город не заполнен или "вручную", например 37.6173)\nвысота: Высота над уровнем моря в метрах (например 156 для Москвы, 11 для СПб)
 
 [Script]
-City Dictionary = type=cron,cronexp="0 0 * * *",wake-system=0,timeout=10,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/location-spoofer/city-dict.js
 iOS Location Spoofer = type=http-response,pattern=^https?:\/\/(?:gs-loc(?:-cn)?\.apple\.com|gsp-ssl\.ls\.apple\.com|bluedot\.is\.autonavi\.com(?:\.gds\.alibabadns\.com)?)\/clls\/wloc,requires-body=1,binary-body-mode=1,max-size=0,timeout=30,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/location-spoofer/location-spoofer.js,argument={город}&{широта}&{долгота}&{высота}&mode=response
 
 [MITM]
