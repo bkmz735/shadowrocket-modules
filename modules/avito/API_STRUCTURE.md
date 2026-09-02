@@ -23,12 +23,12 @@
 
 | Параметр | Пример значения | Описание |
 |---|---|---|
-| `locationId` | `646520` (Стерлитамак) | ID выбранного города/региона. |
+| `locationId` | `637640` (Москва) | ID выбранного города/региона. |
 | `localPriority` | `1` или `0` | **`1` = «Сначала из этого города»**, `0` = выдача по всей РФ / с доставкой. |
 | `categoryId` | `111` | Числовой ID категории (`111` — Вакансии, `112` — Резюме, `114` — Услуги, `4` — Авто, `2` — Недвижимость). |
 | `context` | `jobVacancies`, `service` | Текстовый контекст раздела (закодирован или передан строкой). |
 | `query` | `%D0%BF%D0%BE%D0%B4%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%BA%D0%B0` | Текст поискового запроса. |
-| `geoCoords` | `53.6453,55.9330` | Точные GPS-координаты устройства. |
+| `geoCoords` | `55.7558,37.6173` | Точные GPS-координаты устройства. |
 | `page` / `offset` | `1` / `33` | Пагинация ленты. |
 
 ---
@@ -39,12 +39,12 @@
 
 | Раздел | `categoryId` | Маркер в `uri_mweb` | Примеры |
 |---|---|---|---|
-| **Вакансии** | `111` | `/vakansii/`, `/podrabotka/` | `/sterlitamak/vakansii/sborschik_8330526388` |
-| **Резюме** | `112` | `/rezume/` | `/sterlitamak/rezume/voditel_123456` |
-| **Услуги** | `114` | `/uslugi/` | `/sterlitamak/uslugi/remont_kvartir_987654` |
-| **Транспорт (Авто)** | `4` | `/avtomobili/`, `/transport/`, `/zapchasti_i_aksessuary/` | `/sterlitamak/avtomobili/vaz_2114_555666` |
-| **Недвижимость** | `2` | `/kvartiry/`, `/nedvizhimost/`, `/kommercheskaya_nedvizhimost/` | `/sterlitamak/kvartiry/prodam_2k_111222` |
-| **Электроника** | `6` | `/telefony/`, `/noutbuki/`, `/audio_i_video/` | `/sterlitamak/telefony/iphone_15_pro_333444` |
+| **Вакансии** | `111` | `/vakansii/`, `/podrabotka/` | `/moskva/vakansii/sborschik_8330526388` |
+| **Резюме** | `112` | `/rezume/` | `/moskva/rezume/voditel_123456` |
+| **Услуги** | `114` | `/uslugi/` | `/moskva/uslugi/remont_kvartir_987654` |
+| **Транспорт (Авто)** | `4` | `/avtomobili/`, `/transport/`, `/zapchasti_i_aksessuary/` | `/moskva/avtomobili/vaz_2114_555666` |
+| **Недвижимость** | `2` | `/kvartiry/`, `/nedvizhimost/`, `/kommercheskaya_nedvizhimost/` | `/moskva/kvartiry/prodam_2k_111222` |
+| **Электроника** | `6` | `/telefony/`, `/noutbuki/`, `/audio_i_video/` | `/moskva/telefony/iphone_15_pro_333444` |
 
 ---
 
@@ -57,8 +57,8 @@
     "id": "8330526388",
     "title": "Сборщик-техник дронов бпла",
     "price": "от 210 000 ₽ на руки",
-    "location": "Стерлитамак",
-    "uri_mweb": "/sterlitamak/vakansii/sborschik-tehnik_dronov_bpla_8330526388",
+    "location": "Москва",
+    "uri_mweb": "/moskva/vakansii/sborschik-tehnik_dronov_bpla_8330526388",
     "userType": "private",
     "images": [
       { "720x540": "https://90.img.avito.st/image/..." }
