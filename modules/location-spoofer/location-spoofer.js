@@ -2113,7 +2113,9 @@
       var notifAlert = (typeof $notification !== "undefined") ? $notification : null;
       if (notifAlert) {
         var alertTitle = "[DEBUG] Location Spoofer";
-        var alertSub = "Город: " + (config.city || "ручной") + " | " + config.latitude.toFixed(4) + ", " + config.longitude.toFixed(4);
+        var rawArg = (typeof $argument !== "undefined") ? String($argument) : "<UNDEFINED>";
+                var alertSub = "city: " + (config.city || "empty") + " | lat: " + config.latitude.toFixed(2);
+                var alertBody = "arg: " + rawArg.slice(0, 100);
         var alertBody = "Перехвачен URL: " + (($request && $request.url) ? $request.url.slice(0, 50) : "none");
         notifAlert.post(alertTitle, alertSub, alertBody);
       }
