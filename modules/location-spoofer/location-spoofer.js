@@ -12,7 +12,40 @@
 (function () {
   "use strict";
 
+    var CITY_PRESETS = {
+    moscow: { lat: 55.7558, lon: 37.6173, alt: 156 },
+    spb: { lat: 59.9343, lon: 30.3351, alt: 11 },
+    piter: { lat: 59.9343, lon: 30.3351, alt: 11 },
+    kiev: { lat: 50.4501, lon: 30.5234, alt: 179 },
+    minsk: { lat: 53.9006, lon: 27.5590, alt: 220 },
+    almaty: { lat: 43.2220, lon: 76.8512, alt: 785 },
+    astana: { lat: 51.1694, lon: 71.4491, alt: 347 },
+    tbilisi: { lat: 41.7151, lon: 44.8271, alt: 490 },
+    yerevan: { lat: 40.1792, lon: 44.4991, alt: 989 },
+    london: { lat: 51.5074, lon: -0.1278, alt: 25 },
+    dubai: { lat: 25.2048, lon: 55.2708, alt: 5 },
+    newyork: { lat: 40.7128, lon: -74.0060, alt: 10 },
+    tokyo: { lat: 35.6762, lon: 139.6503, alt: 40 },
+    cupertino: { lat: 37.3349, lon: -122.00902, alt: 72 },
+    apple: { lat: 37.3349, lon: -122.00902, alt: 72 }
+  };
+  CITY_PRESETS["москва"] = CITY_PRESETS.moscow;
+  CITY_PRESETS["питер"] = CITY_PRESETS.spb;
+  CITY_PRESETS["спб"] = CITY_PRESETS.spb;
+  CITY_PRESETS["санкт-петербург"] = CITY_PRESETS.spb;
+  CITY_PRESETS["киев"] = CITY_PRESETS.kiev;
+  CITY_PRESETS["минск"] = CITY_PRESETS.minsk;
+  CITY_PRESETS["алматы"] = CITY_PRESETS.almaty;
+  CITY_PRESETS["астана"] = CITY_PRESETS.astana;
+  CITY_PRESETS["тбилиси"] = CITY_PRESETS.tbilisi;
+  CITY_PRESETS["ереван"] = CITY_PRESETS.yerevan;
+  CITY_PRESETS["лондон"] = CITY_PRESETS.london;
+  CITY_PRESETS["дубай"] = CITY_PRESETS.dubai;
+  CITY_PRESETS["токио"] = CITY_PRESETS.tokyo;
+  CITY_PRESETS["купертино"] = CITY_PRESETS.cupertino;
+
   var DEFAULT_CONFIG = {
+    city: "custom",
     enabled: true,
     mode: "response",
     latitude: 37.3349,
@@ -520,6 +553,22 @@
 
     cfg.enabled = parseBoolean(cfg.enabled, true);
     cfg.failOpen = parseBoolean(cfg.failOpen, true);
+        var rawCity = cfg.city || cfg["город"] || "custom";
+    try { rawCity = decodeURIComponent(rawCity); } catch (e) {}
+    cfg.city = String(rawCity).trim().toLowerCase();
+
+    if (cfg["широта"] !== undefined) cfg.latitude = cfg["широта"];
+    if (cfg["долгота"] !== undefined) cfg.longitude = cfg["долгота"];
+    if (cfg["высота"] !== undefined) cfg.altitude = cfg["высота"];
+
+    if (cfg.city && cfg.city !== "custom" && cfg.city !== "вручную" && CITY_PRESETS[cfg.city]) {
+      cfg.latitude = CITY_PRESETS[cfg.city].lat;
+      cfg.longitude = CITY_PRESETS[cfg.city].lon;
+      if (CITY_PRESETS[cfg.city].alt !== undefined && cfg["высота"] === undefined && input.altitude === undefined) {
+        cfg.altitude = CITY_PRESETS[cfg.city].alt;
+      }
+    }
+
     var mode = String(cfg.mode || "response").toLowerCase();
     cfg.mode = mode === "request" || mode === "prepare" || mode === "probe" || mode === "inspect" ? mode : "response";
     cfg.latitude = Number(cfg.latitude);
@@ -548,17 +597,19 @@
   }
 
   function patchLocation(locationPayload, config) {
-    // Minimal rewrite: only replace existing Latitude (1), Longitude (2), and Accuracy (3).
+    // Minimal rewrite: replace Latitude (1), Longitude (2), Accuracy (3), Altitude (5).
     // If the sub-message lacks lat/lon, pass it through untouched to prevent corrupting
     // the response and causing iOS "Location Unavailable".
     var parts = [];
     var fields = locationPayload.length ? parseFields(locationPayload) : [];
     var hasLat = false;
     var hasLon = false;
+    var hasAlt = false;
     var i;
     for (i = 0; i < fields.length; i += 1) {
       if (fields[i].fieldNumber === 1 && fields[i].wireType === 0) hasLat = true;
       if (fields[i].fieldNumber === 2 && fields[i].wireType === 0) hasLon = true;
+      if (fields[i].fieldNumber === 5 && fields[i].wireType === 0) hasAlt = true;
     }
     if (!hasLat || !hasLon) {
       return locationPayload;
@@ -571,9 +622,14 @@
         parts.push(makeVarintField(2, coordToInt(config.longitude)));
       } else if (field.fieldNumber === 3 && field.wireType === 0) {
         parts.push(makeVarintField(3, config.horizontalAccuracy));
+      } else if (field.fieldNumber === 5 && field.wireType === 0) {
+        parts.push(makeVarintField(5, config.altitude));
       } else {
         parts.push(field.raw);
       }
+    }
+    if (!hasAlt && Number.isFinite(config.altitude)) {
+      parts.push(makeVarintField(5, config.altitude));
     }
     return concatBytes(parts);
   }
