@@ -27,6 +27,10 @@ if (urlMatches) {
             if (Array.isArray(obj)) {
                 console.log(`\n--- Array at [${path}] (Length: ${obj.length}) ---`);
                 const preview = obj.length > 8 ? obj.slice(0, 8) : obj;
+                for (let idx = 0; idx < preview.length; idx++) {
+                    const item = preview[idx];
+                    if (!item || typeof item !== 'object') continue;
+
                     const itemType = item.type || item.itemType || item.layout || item.kind || item.component || 'UNKNOWN_TYPE';
                     const val = (item.value && typeof item.value === 'object') ? item.value : item;
                     
