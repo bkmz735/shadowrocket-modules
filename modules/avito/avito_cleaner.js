@@ -439,8 +439,8 @@ try {
     // Логирование
     console.log('\n========================================');
     console.log('[Avito Deep Cleaner v3]');
-    console.log('Category: ' + (currentCategory !== null ? currentCategory : 'N/A') +
-        ' | Filters: ' + (shouldApplyFilters ? 'ON' : 'OFF (no cats)'));
+    console.log('URL Category: ' + (urlCategory !== null ? urlCategory : 'N/A') +
+        ' | Target cats: ' + (filterEverywhere ? 'ALL' : (filterCategoryIds.length ? filterCategoryIds.join(', ') : 'NONE')));
     if (blockedKeywords.length > 0) {
         console.log('Keywords: [' + blockedKeywords.join(', ') + ']');
     }
