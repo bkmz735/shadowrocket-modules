@@ -8,34 +8,49 @@ if(resStatus !== 200) {
     $done({});
 } else {
     const url = $request.url;
-    const method = $request.method;
-    const postMethod = "POST";
+    const method = ($request.method || "POST").toUpperCase();
     const isQuanX = typeof $task !== "undefined";
     const binaryBody = isQuanX ? new Uint8Array($response.bodyBytes) : $response.body;
     let accountAttributesMapObj;
-    let body;
-    if(url.includes("bootstrap/v1/bootstrap") && method === postMethod){
-        let bootstrapResponseType = protobuf.Root.fromJSON(spotifyJson).lookupType("BootstrapResponse");
-        let bootstrapResponseObj = bootstrapResponseType.decode(binaryBody);
-        accountAttributesMapObj = bootstrapResponseObj.ucsResponseV0.success.customization.success.accountAttributesSuccess.accountAttributes;
-        processMapObj(accountAttributesMapObj);
-        body = bootstrapResponseType.encode(bootstrapResponseObj).finish();
-        console.log('bootstrap');
-    } else if(url.includes("user-customization-service/v1/customize") && method === postMethod){
-        let ucsResponseWrapperType = protobuf.Root.fromJSON(spotifyJson).lookupType("UcsResponseWrapper");
-        let ucsResponseWrapperMessage = ucsResponseWrapperType.decode(binaryBody);
-        accountAttributesMapObj = ucsResponseWrapperMessage.success.accountAttributesSuccess.accountAttributes;
-        processMapObj(accountAttributesMapObj);
-        body = ucsResponseWrapperType.encode(ucsResponseWrapperMessage).finish();
-        console.log('customize');
-    } else {
-        $notification.post('spotify解锁premium', "路径/请求方法匹配错误:", method + "," + url);
+    let body = binaryBody;
+
+    try {
+        if (url.includes("bootstrap/v1/bootstrap")) {
+            let bootstrapResponseType = protobuf.Root.fromJSON(spotifyJson).lookupType("BootstrapResponse");
+            let bootstrapResponseObj = bootstrapResponseType.decode(binaryBody);
+            accountAttributesMapObj = bootstrapResponseObj.ucsResponseV0.success.customization.success.accountAttributesSuccess.accountAttributes;
+            processMapObj(accountAttributesMapObj);
+            body = bootstrapResponseType.encode(bootstrapResponseObj).finish();
+            console.log('🟢 [PROTO] bootstrap successfully modified');
+        } else if (url.includes("user-customization-service/v1/customize")) {
+            let ucsResponseWrapperType = protobuf.Root.fromJSON(spotifyJson).lookupType("UcsResponseWrapper");
+            let ucsResponseWrapperMessage = ucsResponseWrapperType.decode(binaryBody);
+            accountAttributesMapObj = ucsResponseWrapperMessage.success.accountAttributesSuccess.accountAttributes;
+            processMapObj(accountAttributesMapObj);
+            body = ucsResponseWrapperType.encode(ucsResponseWrapperMessage).finish();
+            console.log('🟢 [PROTO] customize successfully modified');
+        } else if (url.includes("device-capabilities/v1/capabilities")) {
+            // Разрешения устройства: если сервер шлет JSON
+            if (typeof $response.body === "string" || ($response.headers && ($response.headers["Content-Type"] || "").includes("json"))) {
+                let jsonStr = typeof $response.body === "string" ? $response.body : new TextDecoder("utf-8").decode(binaryBody);
+                let capObj = JSON.parse(jsonStr);
+                capObj.can_stream_very_high_bitrate = true;
+                capObj.can_stream_high_bitrate = true;
+                capObj.can_stream_lossless = true;
+                capObj.license = "premium";
+                let modifiedJson = JSON.stringify(capObj);
+                $done({ body: modifiedJson });
+                return;
+            }
+        }
+    } catch (e) {
+        console.log(`⚠️ [PROTO] Error modifying response: ${e}`);
     }
-    // console.log(`${body.byteLength}---${body.buffer.byteLength}`);
-    if(isQuanX){
-        $done({bodyBytes: body.buffer.slice(body.byteOffset, body.byteLength + body.byteOffset)});
+
+    if (isQuanX) {
+        $done({ bodyBytes: body.buffer.slice(body.byteOffset, body.byteLength + body.byteOffset) });
     } else {
-        $done({body});
+        $done({ body });
     }
 }
 
