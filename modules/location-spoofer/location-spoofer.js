@@ -535,11 +535,16 @@
     else if (cfg["город"] !== undefined) rawCity = cfg["город"];
     else if (cfg.city !== undefined) rawCity = cfg.city;
     try { rawCity = decodeURIComponent(rawCity); } catch (e) {}
-    cfg.city = String(rawCity || "").trim().toLowerCase();
+    rawCity = String(rawCity || "").trim();
+        if (isPlaceholderValue(rawCity)) rawCity = "";
+        cfg.city = rawCity.toLowerCase();
 
-    if (cfg["широта"] !== undefined) cfg.latitude = cfg["широта"];
-    if (cfg["долгота"] !== undefined) cfg.longitude = cfg["долгота"];
-    if (cfg["высота"] !== undefined) cfg.altitude = cfg["высота"];
+    if (cfg["широта"] !== undefined && !isPlaceholderValue(cfg["широта"])) cfg.latitude = cfg["широта"];
+        if (cfg["долгота"] !== undefined && !isPlaceholderValue(cfg["долгота"])) cfg.longitude = cfg["долгота"];
+        if (cfg["высота"] !== undefined && !isPlaceholderValue(cfg["высота"])) cfg.altitude = cfg["высота"];
+        if (isPlaceholderValue(cfg.latitude)) cfg.latitude = DEFAULT_CONFIG.latitude;
+        if (isPlaceholderValue(cfg.longitude)) cfg.longitude = DEFAULT_CONFIG.longitude;
+        if (isPlaceholderValue(cfg.altitude)) cfg.altitude = DEFAULT_CONFIG.altitude;
 
     var isManual = !cfg.city || cfg.city === "custom" || cfg.city === "вручную" || cfg.city === "none" || cfg.city === "-";
     if (!isManual) {
