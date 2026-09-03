@@ -1,0 +1,9 @@
+﻿#!name=Wildberries Sniffer & Inspector
+#!desc=Перехват и инспекция сетевых запросов мобильного приложения Wildberries для поиска и анализа рекламных структур.
+#!category=Sniffer
+
+[Script]
+wb-sniffer = type=http-response,pattern=^https?:\/\/.*(wildberries|wb)\.ru\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_sniffer.js,timeout=30
+
+[MITM]
+hostname = %APPEND% *.wildberries.ru, *.wb.ru, catalog.wb.ru, user-cards.wb.ru, banners.wb.ru, promo-mobile.wildberries.ru
