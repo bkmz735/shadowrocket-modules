@@ -1,90 +1,135 @@
 ﻿/**
- * 🫐 Wildberries Traffic & Ads Sniffer for Shadowrocket
- * Перехватывает и детально выводит структуру JSON ответов мобильного приложения WB:
- * - Каталог и поисковая выдача
- * - Главная страница, карусели, промо-баннеры
- * - Рекламные блоки и автореклама (бустеры)
- * - Аналитика и трекинг
+ * 🫐 Wildberries Deep Sniffer & Inspector
+ * Показывает точный текст, заголовки баннеров, названия акций и структуру карточек
  */
 
 const url = $request ? $request.url : "";
 const method = $request ? $request.method : "GET";
 const body = (typeof $response !== "undefined" && $response.body) ? $response.body : null;
 
-if (body) {
+// Игнорируем служебные технические запросы, чтобы не спамить в лог
+const IGNORED_URLS = [
+    "antibot.wildberries.ru",
+    "locator.wildberries.ru",
+    "delivery-points-storage",
+    "courses/rub.json"
+];
+
+if (body && !IGNORED_URLS.some(ign => url.includes(ign))) {
     try {
         const data = JSON.parse(body);
 
-        console.log(`\n================== [WB SNIFFER: HIT] ==================`);
+        console.log(`\n================== [WB DEEP INSPECTOR] ==================`);
         console.log(`[METHOD]: ${method}`);
         console.log(`[URL]: ${url}`);
 
-        if (Array.isArray(data)) {
-            console.log(`[ROOT]: Array (length: ${data.length})`);
-        } else if (typeof data === "object" && data !== null) {
-            console.log(`[ROOT KEYS]: ${JSON.stringify(Object.keys(data))}`);
-        }
+        // Рекурсивный поиск текстовых полей, баннеров, акций и каруселей
+        const extractedFindings = [];
 
-        // Поиск потенциальных рекламных / промо / спонсорских структур
-        const adKeywords = ["ad", "advert", "promo", "banner", "sponsor", "booster", "recommend", "carousel", "popup", "teaser"];
-        const matchedAdPaths = [];
-
-        function scanForAds(obj, path, depth) {
-            if (!obj || typeof obj !== "object" || depth > 6) return;
+        function deepInspect(obj, path, depth) {
+            if (!obj || typeof obj !== "object" || depth > 7) return;
 
             if (Array.isArray(obj)) {
-                // Если массив содержит объекты
+                // Если массив элементов
                 if (obj.length > 0 && typeof obj[0] === "object" && obj[0] !== null) {
-                    const sample = obj[0];
-                    const sampleKeys = Object.keys(sample);
-                    
-                    // Проверка наличия подозрительных ключей
-                    const foundKey = sampleKeys.find(k => adKeywords.some(kw => k.toLowerCase().includes(kw)));
-                    if (foundKey) {
-                        matchedAdPaths.push(`${path}[] (Key hint: "${foundKey}", array len: ${obj.length})`);
-                    }
+                    // Проверяем элементы на наличие названий, баннеров, акций
+                    obj.forEach((item, idx) => {
+                        if (!item || typeof item !== "object") return;
 
-                    // Проверка значений type, kind, name, id
-                    if (sample.type || sample.kind || sample.id) {
-                        const typeVal = String(sample.type || sample.kind || "");
-                        if (adKeywords.some(kw => typeVal.toLowerCase().includes(kw))) {
-                            matchedAdPaths.push(`${path}[] (Type hint: "${typeVal}", array len: ${obj.length})`);
+                        const type = item.type || item.kind || item.blockType || item.componentType || "";
+                        const title = item.title || item.name || item.header || item.text || item.caption || "";
+                        const subTitle = item.subTitle || item.subtitle || item.description || "";
+                        const promoText = item.promoText || item.badge || item.label || "";
+                        const actionUrl = item.actionUrl || item.link || item.url || item.targetUrl || "";
+
+                        // Если это баннер, карусель, промо-блок или товар
+                        if (type || title || promoText || actionUrl) {
+                            extractedFindings.push({
+                                path: `${path}[${idx}]`,
+                                type: String(type),
+                                title: String(title).slice(0, 100),
+                                subTitle: String(subTitle).slice(0, 100),
+                                badge: String(promoText).slice(0, 50),
+                                link: String(actionUrl).slice(0, 120),
+                                keys: Object.keys(item).slice(0, 8).join(", ")
+                            });
                         }
-                    }
+                    });
                 }
 
-                // Рекурсивно проверяем первые элементы массива
-                const checkCount = Math.min(obj.length, 3);
-                for (let i = 0; i < checkCount; i++) {
-                    scanForAds(obj[i], `${path}[${i}]`, depth + 1);
+                // Рекурсия внутрь первых 5 элементов
+                const inspectLimit = Math.min(obj.length, 5);
+                for (let i = 0; i < inspectLimit; i++) {
+                    deepInspect(obj[i], `${path}[${i}]`, depth + 1);
                 }
             } else {
-                for (const key in obj) {
-                    if (adKeywords.some(kw => key.toLowerCase().includes(kw))) {
-                        matchedAdPaths.push(`${path ? path + "." : ""}${key} (Type: ${typeof obj[key]})`);
+                // Если объект содержит баннеры или промо-поля
+                for (const k in obj) {
+                    const lk = k.toLowerCase();
+                    if (
+                        lk.includes("banner") ||
+                        lk.includes("promo") ||
+                        lk.includes("carousel") ||
+                        lk.includes("advert") ||
+                        lk.includes("popup") ||
+                        lk.includes("teaser") ||
+                        lk.includes("story") ||
+                        lk.includes("stories")
+                    ) {
+                        const val = obj[k];
+                        if (typeof val === "string" && val.length < 200) {
+                            extractedFindings.push({
+                                path: `${path ? path + "." : ""}${k}`,
+                                type: "STRING_PROP",
+                                title: val,
+                                subTitle: "",
+                                badge: "",
+                                link: "",
+                                keys: ""
+                            });
+                        } else if (Array.isArray(val)) {
+                            extractedFindings.push({
+                                path: `${path ? path + "." : ""}${k}`,
+                                type: `ARRAY (length: ${val.length})`,
+                                title: "",
+                                subTitle: "",
+                                badge: "",
+                                link: "",
+                                keys: val.length > 0 && typeof val[0] === "object" ? Object.keys(val[0]).join(", ") : ""
+                            });
+                        }
                     }
-                    if (obj[key] && typeof obj[key] === "object") {
-                        scanForAds(obj[key], path ? `${path}.${key}` : key, depth + 1);
+
+                    if (obj[k] && typeof obj[k] === "object") {
+                        deepInspect(obj[k], path ? `${path}.${k}` : k, depth + 1);
                     }
                 }
             }
         }
 
-        scanForAds(data, "", 0);
+        deepInspect(data, "", 0);
 
-        if (matchedAdPaths.length > 0) {
-            console.log(`\n🎯 [POSSIBLE AD TARGETS FOUND] (${matchedAdPaths.length}):`);
-            const uniquePaths = Array.from(new Set(matchedAdPaths)).slice(0, 10);
-            uniquePaths.forEach(p => console.log(`  -> ${p}`));
+        if (extractedFindings.length > 0) {
+            console.log(`\n📢 [НАЙДЕНЫ БЛОКИ / ТЕКСТЫ РЕКЛАМЫ И БАННЕРОВ] (Всего: ${extractedFindings.length}):`);
+            const preview = extractedFindings.slice(0, 25);
+            preview.forEach(f => {
+                console.log(`  🔹 [${f.path}] Type: "${f.type}"`);
+                if (f.title) console.log(`     Текст/Заголовок: "${f.title}"`);
+                if (f.subTitle) console.log(`     Подзаголовок: "${f.subTitle}"`);
+                if (f.badge) console.log(`     Бейдж/Промо: "${f.badge}"`);
+                if (f.link) console.log(`     Ссылка/Действие: "${f.link}"`);
+                if (f.keys) console.log(`     Ключи объекта: [${f.keys}]`);
+            });
+            if (extractedFindings.length > 25) {
+                console.log(`     ... и еще ${extractedFindings.length - 25} элементов`);
+            }
+        } else {
+            console.log(`[INFO] Явных промо-блоков не найдено, ключи корня: ${JSON.stringify(Object.keys(data))}`);
         }
 
-        // Превью начала ответа
-        const preview = typeof body === "string" ? body.slice(0, 300) : "";
-        console.log(`\n[PREVIEW]: ${preview}...`);
-        console.log(`=======================================================\n`);
+        console.log(`=========================================================\n`);
     } catch (e) {
-        // Ответ не JSON (бинарный/картинка/protobuf), логируем только эндпоинт если релевантен
-        console.log(`[WB SNIFFER] Non-JSON or Stream: ${method} ${url}`);
+        // не json
     }
 }
 
