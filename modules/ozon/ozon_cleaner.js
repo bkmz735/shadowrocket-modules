@@ -1,11 +1,11 @@
 ﻿/**
  * 🛡️ Ozon AdBlock & Deep Cleaner
- * Вырезание баннеров, чаевых продавцу, промо Ozon Банка (карты/кредиты), видео-рекламы и трекеров
+ * Вырезание рекламы, баннеров, чаевых и промо-предложений БЕЗ ущерба для баланса и карт пользователя
  */
 
 const url = $request ? $request.url : "";
 
-// Префиксы виджетов, подлежащих удалению
+// Префиксы заведомо рекламных виджетов Ozon
 const AD_WIDGET_PREFIXES = [
     "advbanner",
     "adbanner",
@@ -15,9 +15,7 @@ const AD_WIDGET_PREFIXES = [
     "advrefreshwithdelay",
     "promobanner",
     "adcarousel",
-    "rateitems",         // Оцените товары / Поблагодарить продавца (чаевые)
-    "uwidgetobject",     // Промо-баннеры в ЛК и категориях (object.grid1, banner)
-    "navigationblocks"   // Промо-блоки в профиле (если содержат рекламу)
+    "rateitems" // «Поблагодарить продавца»
 ];
 
 function isAdWidgetPrefix(key) {
@@ -34,22 +32,20 @@ function isAdWidgetPrefix(key) {
 function shouldDeleteWidget(key, val) {
     const lowerKey = key.toLowerCase();
 
-    // 1. Прямой матчинг по префиксу
+    // 1. ВАЖНО: НИКОГДА не трогаем financeWidget и financeHeaderWidget!
+    // В них живет реальный баланс пользователя (Ozon Карта, баллы, счёт)!
+    if (lowerKey.startsWith("financewidget") || lowerKey.startsWith("financeheaderwidget")) {
+        return false;
+    }
+
+    // 2. Прямой матчинг по заведомо рекламным префиксам
     if (isAdWidgetPrefix(key)) {
-        // Исключение: navigationBlocks удаляем только если внутри промо/реклама
-        if (lowerKey.startsWith("navigationblocks")) {
-            const s = JSON.stringify(val);
-            if (s.includes("кредит") || s.includes("карта") || s.includes("джекпот") || s.includes("банк")) {
-                return true;
-            }
-            return false;
-        }
         return true;
     }
 
     const str = typeof val === "string" ? val : JSON.stringify(val);
 
-    // 2. «Поблагодарить продавца» / Чаевые / Оценка товаров
+    // 3. «Поблагодарить продавца» / Чаевые
     if (
         lowerKey.includes("rateitem") ||
         lowerKey.includes("tipping") ||
@@ -62,30 +58,14 @@ function shouldDeleteWidget(key, val) {
         return true;
     }
 
-    // 3. Банковские промо-баннеры («До 500 000 ₽», «Кредитная карта», «до 1 000 000», «Оформить карту»)
+    // 4. Баннер кредитки / кредита наличными в Ozon Банке
     if (
-        lowerKey.includes("finance") ||
-        lowerKey.includes("banner") ||
-        lowerKey.includes("card") ||
+        lowerKey.includes("adbanner") ||
         lowerKey.includes("curtain") ||
-        lowerKey.includes("tilescroll") ||
-        lowerKey.includes("celllist")
+        str.includes("До 500 000") ||
+        str.includes("чтобы продлить лето")
     ) {
-        if (
-            str.includes("До 500 000") ||
-            str.includes("До 500 000") ||
-            str.includes("Кредитная карта") ||
-            str.includes("кредитная карта") ||
-            str.includes("1 000 000") ||
-            str.includes("1 000 000") ||
-            str.includes("1000000") ||
-            str.includes("order-card") ||
-            str.includes("orderCardType") ||
-            str.includes("Оформить карту") ||
-            str.includes("чтобы продлить лето")
-        ) {
-            return true;
-        }
+        return true;
     }
 
     return false;
@@ -119,9 +99,13 @@ function cleanOzonPayload(rawBody) {
                 const widgetKey = item.widgetKey || item.name || item.component || "";
                 const lowerKey = widgetKey.toLowerCase();
 
-                // Проверка по имени компонента в layout
+                // ВАЖНО: Не трогаем блок финансов пользователя в ЛК
+                if (lowerKey.includes("financewidget") || lowerKey.includes("financeheaderwidget")) {
+                    return true;
+                }
+
                 if (
-                    lowerKey.includes("fintabbannerpriority") || // Баннер в банке
+                    lowerKey.includes("fintabbannerpriority") || // Рекламный баннер в банке
                     lowerKey.includes("advbanner") ||
                     lowerKey.includes("advvideobannermobile") ||
                     lowerKey.includes("entrybannerwidget") ||
