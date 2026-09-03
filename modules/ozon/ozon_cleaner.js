@@ -1,53 +1,107 @@
 ﻿/**
- * Ozon Cleaner
- * Фильтрация рекламы, рекламных полок, спонсорских виджетов и трекеров в API Ozon
+ * 🛡️ Ozon AdBlock & Deep Cleaner
+ * Точечное удаление рекламных баннеров, видео-рекламы, промо-плашек и трекеров
  */
 
-const url = $request.url;
+const url = $request ? $request.url : "";
 
-function cleanBody(rawBody) {
+// Список рекламных типов виджетов Ozon Composer
+const AD_WIDGET_PREFIXES = [
+    "advbanner",
+    "adbanner",
+    "banner",
+    "advvideobannermobile",
+    "entrybannerwidget",
+    "advrefreshwithdelay",
+    "promobanner",
+    "adcarousel"
+];
+
+function isAdWidget(key) {
+    if (!key) return false;
+    const lower = key.toLowerCase();
+    for (const prefix of AD_WIDGET_PREFIXES) {
+        if (lower.startsWith(prefix)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function cleanOzonPayload(rawBody) {
     if (!rawBody) return rawBody;
-    try {
-        let obj = JSON.parse(rawBody);
 
-        // Очистка виджетов Ozon (динамические страницы / мобильный API)
-        if (obj.widgetStates && typeof obj.widgetStates === "object") {
-            for (const key of Object.keys(obj.widgetStates)) {
-                const lowerKey = key.toLowerCase();
-                // Фильтрация рекламных баннеров, промо-блоков и рекламных каруселей
-                if (
-                    lowerKey.includes("banner") ||
-                    lowerKey.includes("advert") ||
-                    lowerKey.includes("promo") ||
-                    lowerKey.includes("commercial")
-                ) {
-                    delete obj.widgetStates[key];
+    try {
+        const data = JSON.parse(rawBody);
+        let modified = false;
+
+        const deletedWidgetKeys = new Set();
+
+        // 1. Очистка widgetStates от рекламных виджетов
+        if (data.widgetStates && typeof data.widgetStates === "object") {
+            for (const key of Object.keys(data.widgetStates)) {
+                if (isAdWidget(key)) {
+                    delete data.widgetStates[key];
+                    deletedWidgetKeys.add(key);
+                    modified = true;
                 }
             }
         }
 
-        // Очистка списков элементов layout/widgets
-        if (Array.isArray(obj.widgets)) {
-            obj.widgets = obj.widgets.filter(w => {
-                const type = (w.type || w.name || "").toLowerCase();
-                return !(
-                    type.includes("banner") ||
-                    type.includes("advert") ||
-                    type.includes("promo") ||
-                    type.includes("commercial")
-                );
+        // 2. Очистка дерева layout, чтобы не оставалось пустых контейнеров на экране
+        if (Array.isArray(data.layout)) {
+            const initialLen = data.layout.length;
+            
+            data.layout = data.layout.filter(item => {
+                // Если элемент ссылается на удаленный рекламный виджет
+                const widgetKey = item.widgetKey || item.name || item.component || "";
+                if (deletedWidgetKeys.has(widgetKey) || isAdWidget(widgetKey)) {
+                    return false;
+                }
+                return true;
             });
+
+            // Очистка идущих подряд лишних разделителей после удаления баннеров
+            const cleanedLayout = [];
+            for (let i = 0; i < data.layout.length; i++) {
+                const cur = data.layout[i];
+                const curKey = (cur.widgetKey || cur.name || cur.component || "").toLowerCase();
+                const isSep = curKey.includes("separator");
+
+                if (isSep && cleanedLayout.length > 0) {
+                    const prevKey = (cleanedLayout[cleanedLayout.length - 1].widgetKey || 
+                                     cleanedLayout[cleanedLayout.length - 1].name || 
+                                     cleanedLayout[cleanedLayout.length - 1].component || "").toLowerCase();
+                    // Если два разделителя подряд - пропускаем дубль
+                    if (prevKey.includes("separator")) {
+                        continue;
+                    }
+                }
+                cleanedLayout.push(cur);
+            }
+            data.layout = cleanedLayout;
+
+            if (data.layout.length !== initialLen) {
+                modified = true;
+            }
         }
 
-        return JSON.stringify(obj);
+        // 3. Зачистка trackingPayloads (встроенная аналитика)
+        if (data.trackingPayloads) {
+            delete data.trackingPayloads;
+            modified = true;
+        }
+
+        return modified ? JSON.stringify(data) : rawBody;
+
     } catch (e) {
         return rawBody;
     }
 }
 
 if (typeof $response !== "undefined" && $response.body) {
-    const modifiedBody = cleanBody($response.body);
-    $done({ body: modifiedBody });
+    const cleaned = cleanOzonPayload($response.body);
+    $done({ body: cleaned });
 } else {
     $done({});
 }

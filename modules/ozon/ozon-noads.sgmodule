@@ -1,9 +1,9 @@
-﻿#!name=Ozon NoAds & Clean Layout
-#!desc=Блокировка рекламы, трекеров, аналитики и промо-баннеров в приложении Ozon.
+﻿#!name=Ozon NoAds & Clean Layout v2
+#!desc=Блокировка рекламы, видео-баннеров, промо-плашек (Ozon Банк, джекпоты, акции) и трекеров в приложении Ozon.
 #!category=AdBlock
 
 [Rule]
-# Аналитика, метрики и трекеры
+# Внешние трекеры, аналитика и рекламные сети
 DOMAIN-SUFFIX,appmetrica.yandex.net,REJECT
 DOMAIN-SUFFIX,mobile.yandex.net,REJECT
 DOMAIN-SUFFIX,an.yandex.ru,REJECT
@@ -12,17 +12,18 @@ DOMAIN-SUFFIX,adjust.world,REJECT
 DOMAIN-SUFFIX,app-analytics-services.com,REJECT
 DOMAIN-SUFFIX,mytarget.com,REJECT
 DOMAIN-SUFFIX,vk-analytics.ru,REJECT
-DOMAIN-SUFFIX,tns-counter.ru,REJECT
 DOMAIN-SUFFIX,top-fwz1.mail.ru,REJECT
+DOMAIN-SUFFIX,tns-counter.ru,REJECT
+DOMAIN-SUFFIX,googlesyndication.com,REJECT
 
-# Внутренние рекламные и аналитические эндпоинты Ozon
-DOMAIN,metrics.ozon.ru,REJECT
-DOMAIN,tracker.ozon.ru,REJECT
-DOMAIN,analytics.ozon.ru,REJECT
+# Внутренние трекеры кликов/показов Ozon
+DOMAIN,p.ozon.ru,REJECT
+DOMAIN,sentry.ozon.ru,REJECT
+URL-REGEX,^https?:\/\/api\.ozon\.ru\/p-api\/tracker\/,REJECT
 
 [Script]
-# Очистка рекламных блоков и промо-виджетов в API
-ozon-cleaner = type=http-response,pattern=^https?:\/\/(api|xapi|xapi-gate|api-mobile)\.ozon\.ru\/.*$,requires-body=1,max-size=2097152,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js,timeout=10
+# Хирургическая вырезка рекламных блоков и промо-виджетов из Composer API
+ozon-cleaner = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js?v=20260904_02,timeout=15
 
 [MITM]
-hostname = %APPEND% api.ozon.ru, xapi.ozon.ru, xapi-gate.ozon.ru, api-mobile.ozon.ru
+hostname = %APPEND% api.ozon.ru
