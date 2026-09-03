@@ -1,39 +1,11 @@
 ﻿/**
  * 🛡️ Ozon AdBlock & Deep Cleaner
- * Вырезание рекламы, баннеров, чаевых и спам-диалогов в Сообщениях:
- * «Скидки и акции», «Морковск», «Только для вас», «Ozon Travel / Травел лента» и др.
+ * Вырезание рекламы, баннеров, чаевых, Ozon Банк кредитов и рекламных пушей/чатов
  */
 
 const url = $request ? $request.url : "";
 
-// Список спам-каналов и рекламных ботов в Сообщениях
-const SPAM_CHAT_KEYWORDS = [
-    "скидки и акции",
-    "морковск",
-    "только для вас",
-    "травел лента",
-    "ozon travel",
-    "ozon банк",
-    "акции и скидки",
-    "спецпредложения",
-    "розыгрыш",
-    "бонусы",
-    "мои уведомления",
-    "промо"
-];
-
-function isSpamChatText(text) {
-    if (!text || typeof text !== "string") return false;
-    const lower = text.toLowerCase();
-    for (const kw of SPAM_CHAT_KEYWORDS) {
-        if (lower.includes(kw)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// Префиксы рекламных виджетов Composer
+// Префиксы заведомо рекламных виджетов Ozon
 const AD_WIDGET_PREFIXES = [
     "advbanner",
     "adbanner",
@@ -97,35 +69,6 @@ function shouldDeleteWidget(key, val) {
     return false;
 }
 
-// Рекурсивная зачистка спам-чатов из любых массивов диалогов
-function filterChatsDeep(obj) {
-    if (!obj || typeof obj !== "object") return obj;
-
-    // 1. Если это массив чатов / диалогов
-    for (const key of Object.keys(obj)) {
-        const val = obj[key];
-        if (Array.isArray(val)) {
-            obj[key] = val.filter(item => {
-                if (!item || typeof item !== "object") return true;
-                const title = item.title || item.name || item.header || (item.chat && item.chat.title) || "";
-                const subtitle = item.subtitle || item.lastMessageSnippet || item.snippet || "";
-                if (isSpamChatText(title) || isSpamChatText(subtitle)) {
-                    return false;
-                }
-                return true;
-            });
-            // Рекурсивно чистим дальше элементы массива
-            for (let i = 0; i < obj[key].length; i++) {
-                obj[key][i] = filterChatsDeep(obj[key][i]);
-            }
-        } else if (typeof val === "object") {
-            obj[key] = filterChatsDeep(val);
-        }
-    }
-
-    return obj;
-}
-
 function cleanOzonPayload(rawBody) {
     if (!rawBody) return rawBody;
 
@@ -133,30 +76,11 @@ function cleanOzonPayload(rawBody) {
         let data = JSON.parse(rawBody);
         let modified = false;
 
-        // Если это сообщения, чаты или диалоги (любой эндпоинт мессенджера)
-        if (
-            url.includes("messenger") ||
-            url.includes("chats") ||
-            url.includes("communications") ||
-            data.chats ||
-            data.chatList
-        ) {
-            data = filterChatsDeep(data);
-            return JSON.stringify(data);
-        }
-
         const deletedWidgetKeys = new Set();
 
         // 1. Очистка widgetStates
         if (data.widgetStates && typeof data.widgetStates === "object") {
             for (const key of Object.keys(data.widgetStates)) {
-                // Если внутри widgetStates сидит список чатов (экран мессенджера в Composer)
-                if (key.toLowerCase().includes("chat") || key.toLowerCase().includes("messenger")) {
-                    data.widgetStates[key] = filterChatsDeep(data.widgetStates[key]);
-                    modified = true;
-                    continue;
-                }
-
                 if (shouldDeleteWidget(key, data.widgetStates[key])) {
                     delete data.widgetStates[key];
                     deletedWidgetKeys.add(key);
