@@ -3,7 +3,7 @@
 #!category=AdBlock
 
 [Rule]
-# 1. Подавление спама телеметрии WB (устраняет причину падений VPN)
+# 1. Подавление спама телеметрии WB
 DOMAIN,journal-bt.wildberries.ru,REJECT
 DOMAIN,a.wb.ru,REJECT
 DOMAIN,marketplace-sentry.wb.ru,REJECT
@@ -26,8 +26,8 @@ DOMAIN-SUFFIX,vk-analytics.ru,REJECT
 DOMAIN-SUFFIX,tns-counter.ru,REJECT
 
 [Script]
-# Очистка баннеров, слайдеров, лотерей, корзины и рассрочек
-wb-cleaner = type=http-response,pattern=^https?:\/\/.*(banners-bt\.wildberries\.ru\/api\/|chances\.wildberries\.ru\/chance-gateway|installments-aggregator-bt\.wildberries\.ru|gateway-subscriptions.*paywb\.com|apps-config\.wildberries\.ru\/config\/api\/v2\/(reactive|config)|ui-bt\.wildberries\.ru\/ui-bt\/api\/v1\/profile).*$,requires-body=1,max-size=2097152,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_cleaner.js,timeout=15
+# Очистка баннеров, слайдеров, лотерей, корзины и рассрочек (с параметром версии для сброса кэша Shadowrocket)
+wb-cleaner = type=http-response,pattern=^https?:\/\/.*(banners-bt\.wildberries\.ru\/api\/|chances\.wildberries\.ru\/chance-gateway|installments-aggregator-bt\.wildberries\.ru|gateway-subscriptions.*paywb\.com|apps-config\.wildberries\.ru\/config\/api\/v2\/(reactive|config)|ui-bt\.wildberries\.ru\/ui-bt\/api\/v1\/profile).*$,requires-body=1,max-size=2097152,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_cleaner.js?v=20260904_2,timeout=15
 
 [MITM]
 hostname = %APPEND% banners-bt.wildberries.ru, chances.wildberries.ru, installments-aggregator-bt.wildberries.ru, gateway-subscriptions.common.geo.paywb.com, apps-config.wildberries.ru, ui-bt.wildberries.ru
