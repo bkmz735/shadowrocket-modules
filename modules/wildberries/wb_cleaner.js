@@ -1,30 +1,26 @@
 ﻿/**
- * 🫐 Wildberries Deep AdBlocker & Cleaner
- * Полная очистка на основе перехваченных структур:
- * - topSliderNF, topSlider, smallTiles, thxForOrderSF в banners-bt/v5/main
- * - brandsBanner и saleLabels в promopages/mobile
- * - баннеры корзины api/v1/basket
- * - лотереи и шансы в chances.wildberries.ru
- * - подписки WB Клуб в gateway-subscriptions
- * - рассрочки в installments-aggregator-bt
+ * 🫐 Wildberries Bulletproof Cleaner
+ * Устраняет баннеры, карусели, розыгрыши и рекламу WB.
+ * Обернут в самовызывающуюся функцию (IIFE), чтобы return работал корректно в JSCore iOS.
  */
 
-const url = $request ? $request.url : "";
-const body = (typeof $response !== "undefined" && $response.body) ? $response.body : null;
+(function () {
+    const url = (typeof $request !== "undefined" && $request.url) ? $request.url : "";
+    const body = (typeof $response !== "undefined" && $response.body) ? $response.body : null;
 
-if (!body) {
-    $done({});
-} else {
+    if (!body) {
+        $done({});
+        return;
+    }
+
     try {
         let modified = false;
 
-        // =========================================================================
-        // 1. Главные баннеры и промо-слайдеры (banners-bt.wildberries.ru)
-        // =========================================================================
+        // 1. Главные баннеры и карусели (banners-bt.wildberries.ru)
         if (url.includes("banners-bt.wildberries.ru")) {
             const data = JSON.parse(body);
 
-            // /api/v5/main — верхний слайдер, плитки, баннеры после заказа
+            // Главный слайдер акций (/api/v5/main)
             if (data && data.data && typeof data.data === "object") {
                 const adFields = [
                     "topSliderNF",
@@ -37,19 +33,19 @@ if (!body) {
                     "popups"
                 ];
 
-                for (const field of adFields) {
-                    if (Array.isArray(data.data[field]) && data.data[field].length > 0) {
-                        data.data[field] = [];
+                for (let i = 0; i < adFields.length; i++) {
+                    const f = adFields[i];
+                    if (Array.isArray(data.data[f]) && data.data[f].length > 0) {
+                        data.data[f] = [];
                         modified = true;
                     }
                 }
             }
 
-            // /api/v2/promopages/mobile — промо-страницы, брендовые баннеры
+            // Промо-страницы (/api/v2/promopages/mobile)
             if (data && Array.isArray(data.data)) {
-                data.data = data.data.filter(block => {
+                data.data = data.data.filter(function (block) {
                     if (!block) return true;
-                    // Если блок содержит brandsBanner или рекламные saleLabels
                     if (Array.isArray(block.brandsBanner)) return false;
                     if (Array.isArray(block.saleLabels)) return false;
                     return true;
@@ -57,7 +53,7 @@ if (!body) {
                 modified = true;
             }
 
-            // /api/v1/basket — баннеры в корзине
+            // Баннеры в корзине (/api/v1/basket)
             if (url.includes("/basket")) {
                 $done({ body: JSON.stringify({ data: [], items: [], banners: [] }) });
                 return;
@@ -69,34 +65,25 @@ if (!body) {
             }
         }
 
-        // =========================================================================
-        // 2. Розыгрыши, шансы и лотереи (chances.wildberries.ru)
-        // =========================================================================
+        // 2. Лотереи и розыгрыши ("Шансы")
         if (url.includes("chances.wildberries.ru")) {
-            // Возвращаем пустой массив, чтобы плашка розыгрыша не показывалась
             $done({ body: JSON.stringify([]) });
             return;
         }
 
-        // =========================================================================
-        // 3. Рассрочки и кредиты WB Банка (installments-aggregator-bt)
-        // =========================================================================
+        // 3. Рассрочки и кредиты WB Банка
         if (url.includes("installments-aggregator-bt.wildberries.ru")) {
             $done({ body: JSON.stringify({ installmentProduct: null, status: "success" }) });
             return;
         }
 
-        // =========================================================================
-        // 4. Навязывание подписок (gateway-subscriptions.common.geo.paywb.com)
-        // =========================================================================
+        // 4. Навязывание платных подписок (WB Клуб)
         if (url.includes("gateway-subscriptions")) {
             $done({ body: JSON.stringify({ data: [], subscriptions: [] }) });
             return;
         }
 
-        // =========================================================================
-        // 5. Конфигурация фичей (apps-config.wildberries.ru)
-        // =========================================================================
+        // 5. Конфигурация реактивных фичей (apps-config)
         if (url.includes("apps-config.wildberries.ru/config/api/v2/reactive")) {
             const data = JSON.parse(body);
             if (data && data.reactive) {
@@ -108,10 +95,11 @@ if (!body) {
                     "enableSoftBannerExpForce",
                     "enableNewFlowForPromocodes"
                 ];
-                for (const key of bannerKeys) {
-                    if (data.reactive[key] && typeof data.reactive[key] === "object") {
-                        data.reactive[key].enabled = false;
-                        if (data.reactive[key].range) data.reactive[key].range.percentage = 0;
+                for (let i = 0; i < bannerKeys.length; i++) {
+                    const k = bannerKeys[i];
+                    if (data.reactive[k] && typeof data.reactive[k] === "object") {
+                        data.reactive[k].enabled = false;
+                        if (data.reactive[k].range) data.reactive[k].range.percentage = 0;
                         modified = true;
                     }
                 }
@@ -137,13 +125,11 @@ if (!body) {
             }
         }
 
-        // =========================================================================
-        // 6. Личный кабинет (ui-bt.wildberries.ru/ui-bt/api/v1/profile)
-        // =========================================================================
+        // 6. Личный кабинет (ЛК)
         if (url.includes("ui-bt.wildberries.ru/ui-bt/api/v1/profile")) {
             const data = JSON.parse(body);
             if (data && data.profile && Array.isArray(data.profile.widgets)) {
-                data.profile.widgets = data.profile.widgets.filter(w => {
+                data.profile.widgets = data.profile.widgets.filter(function (w) {
                     if (!w) return true;
                     const type = String(w.type || "").toLowerCase();
                     const title = String(w.title || "").toLowerCase();
@@ -158,4 +144,4 @@ if (!body) {
     } catch (e) {
         $done({});
     }
-}
+})();
