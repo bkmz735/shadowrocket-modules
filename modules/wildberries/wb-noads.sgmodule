@@ -11,16 +11,17 @@ DOMAIN,xapi.wildberries.ru,REJECT
 DOMAIN,statistics-bt.wildberries.ru,REJECT
 DOMAIN,user-vector-info.wb.ru,REJECT
 DOMAIN,marketing-info.wildberries.ru,REJECT
+DOMAIN,data-checker.wildberries.ru,REJECT
 
-# 2. Промо и спец-акции WB (баннеры, не нужен MITM — просто дропаем)
+# 2. Промо и спец-акции WB
 DOMAIN,specials.wildberries.ru,REJECT
 
-# 3. Внешняя реклама и аналитика
+# 3. Внешняя реклама и аналитика (DOMAIN вместо DOMAIN-SUFFIX где нужна точность)
 DOMAIN-SUFFIX,googlesyndication.com,REJECT
 DOMAIN-SUFFIX,app-ads-services.com,REJECT
 DOMAIN-SUFFIX,app-analytics-services.com,REJECT
 DOMAIN-SUFFIX,app-measurement.com,REJECT
-DOMAIN-SUFFIX,firebase-settings.crashlytics.com,REJECT
+DOMAIN-SUFFIX,crashlytics.com,REJECT
 DOMAIN-SUFFIX,firebaselogging-pa.googleapis.com,REJECT
 DOMAIN-SUFFIX,litix.io,REJECT
 DOMAIN-SUFFIX,appmetrica.yandex.net,REJECT
@@ -31,6 +32,7 @@ DOMAIN-SUFFIX,vk-analytics.ru,REJECT
 DOMAIN-SUFFIX,tns-counter.ru,REJECT
 DOMAIN-SUFFIX,doubleclick.net,REJECT
 DOMAIN-SUFFIX,googleadservices.com,REJECT
+DOMAIN-SUFFIX,sentry.io,REJECT
 
 [Script]
 # Очистка баннеров, слайдеров, карточек, выдачи, рекомендаций, рассрочек
