@@ -16,7 +16,7 @@ DOMAIN,data-checker.wildberries.ru,REJECT
 # 2. Промо и спец-акции WB
 DOMAIN,specials.wildberries.ru,REJECT
 
-# 3. Внешняя реклама и аналитика (DOMAIN вместо DOMAIN-SUFFIX где нужна точность)
+# 3. Внешняя реклама и аналитика
 DOMAIN-SUFFIX,googlesyndication.com,REJECT
 DOMAIN-SUFFIX,app-ads-services.com,REJECT
 DOMAIN-SUFFIX,app-analytics-services.com,REJECT
@@ -35,8 +35,8 @@ DOMAIN-SUFFIX,googleadservices.com,REJECT
 DOMAIN-SUFFIX,sentry.io,REJECT
 
 [Script]
-# Очистка баннеров, слайдеров, карточек, выдачи, рекомендаций, рассрочек
-wb-cleaner = type=http-response,pattern=^https?:\/\/.*(banners-bt\.wildberries\.ru\/api\/|chances\.wildberries\.ru\/chance-gateway|installments-aggregator-bt\.wildberries\.ru|gateway-subscriptions.*paywb\.com|apps-config\.wildberries\.ru\/config\/api\/v2\/(reactive|config)|ui-bt\.wildberries\.ru\/ui-bt\/api\/v1\/profile|api-ios\.wildberries\.ru\/__internal\/(catalog|search|recom|card)|catalog\.wb\.ru).*$,requires-body=1,max-size=1048576,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_cleaner.js?v=20260904_9,timeout=15
+# Очистка баннеров, слайдеров, карточек, выдачи, рекомендаций, home-service, рассрочек
+wb-cleaner = type=http-response,pattern=^https?:\/\/.*(banners-bt\.wildberries\.ru\/api\/|chances\.wildberries\.ru\/chance-gateway|installments-aggregator-bt\.wildberries\.ru|gateway-subscriptions.*paywb\.com|apps-config\.wildberries\.ru\/config\/api\/v2\/(reactive|config)|ui-bt\.wildberries\.ru\/ui-bt\/api\/v1\/profile|home-service\.wildberries\.ru\/home-service\/api\/|api-ios\.wildberries\.ru\/__internal\/|catalog\.wb\.ru).*$,requires-body=1,max-size=1048576,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_cleaner.js?v=20260904_10,timeout=15
 
 [MITM]
-hostname = %APPEND% banners-bt.wildberries.ru, chances.wildberries.ru, installments-aggregator-bt.wildberries.ru, gateway-subscriptions.common.geo.paywb.com, apps-config.wildberries.ru, ui-bt.wildberries.ru, api-ios.wildberries.ru, catalog.wb.ru
+hostname = %APPEND% banners-bt.wildberries.ru, chances.wildberries.ru, installments-aggregator-bt.wildberries.ru, gateway-subscriptions.common.geo.paywb.com, apps-config.wildberries.ru, ui-bt.wildberries.ru, home-service.wildberries.ru, api-ios.wildberries.ru, catalog.wb.ru

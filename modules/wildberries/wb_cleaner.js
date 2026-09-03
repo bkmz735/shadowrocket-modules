@@ -1,14 +1,15 @@
 ﻿/**
- * Wildberries Cleaner v9 (Full Ad/ORD/Promo/Installment Cleaner)
+ * Wildberries Cleaner v10 (Full Ad/ORD/Promo/Installment Cleaner)
  *
  * Обработчики (в порядке приоритета):
  *   1. banners-bt  — главная, корзина, ЛК, промо-страницы
  *   2. ui-bt       — профиль (виджеты, баннеры, рассрочки)
- *   3. /card/cards — карточки товаров (ОРД/ЕРИД, бустеры, промо)
- *   4. catalog/search/recom — выдача, поиск, рекомендации, блендер
- *   5. chances     — розыгрыши
- *   6. installments/subscriptions — рассрочки и подписки
- *   7. apps-config — конфиги приложения (промо-фичи, попапы)
+ *   3. home-service — постоплата, промо-блоки главного экрана
+ *   4. /card/cards — карточки товаров (ОРД/ЕРИД, бустеры, промо)
+ *   5. api-ios/catalog — выдача, поиск, рекомендации, блендер
+ *   6. chances     — розыгрыши
+ *   7. installments/subscriptions — рассрочки и подписки
+ *   8. apps-config — конфиги приложения (промо-фичи, попапы)
  */
 
 (function () {
@@ -27,13 +28,11 @@
         // =====================================================================
         if (url.includes("banners-bt.wildberries.ru")) {
 
-            // ЛК (/api/v3/account)
             if (url.includes("/account")) {
                 $done({ body: JSON.stringify({ data: { banners: [] }, banners: [], items: [] }) });
                 return;
             }
 
-            // Корзина (/api/v1/basket)
             if (url.includes("/basket")) {
                 const data = safeJSON(body);
                 if (data) {
@@ -45,7 +44,6 @@
                 return;
             }
 
-            // Главная (/api/v5/main) — зануляем ВСЕ массивы в data.data рекурсивно
             if (url.includes("/main")) {
                 const data = safeJSON(body);
                 if (data && data.data && typeof data.data === "object") {
@@ -53,12 +51,10 @@
                     $done({ body: JSON.stringify(data) });
                     return;
                 }
-                // Если структура не та — отдаём пустышку
                 $done({ body: JSON.stringify({ data: {} }) });
                 return;
             }
 
-            // Промо-страницы (/api/v2/promopages/mobile)
             if (url.includes("/promopages")) {
                 const data = safeJSON(body);
                 if (data && Array.isArray(data.data)) {
@@ -68,7 +64,6 @@
                 }
             }
 
-            // Любые другие эндпоинты banners-bt — убиваем
             $done({ body: JSON.stringify({ data: {} }) });
             return;
         }
@@ -79,7 +74,6 @@
         if (url.includes("ui-bt.wildberries.ru")) {
             const data = safeJSON(body);
             if (data && typeof data === "object") {
-                // Виджеты профиля
                 if (data.profile && Array.isArray(data.profile.widgets)) {
                     data.profile.widgets = data.profile.widgets.filter(function (w) {
                         if (!w) return true;
@@ -98,7 +92,23 @@
         }
 
         // =====================================================================
-        // 3. Карточки товаров (/card/cards/) — ОРД/ЕРИД, бустеры, промо
+        // 3. home-service — постоплата и промо-блоки главного экрана
+        // =====================================================================
+        if (url.includes("home-service.wildberries.ru")) {
+            const data = safeJSON(body);
+            if (data && typeof data === "object") {
+                // Рекурсивно удаляем ОРД/ЕРИД/промо из любых вложенных объектов
+                deepStripOrd(data);
+                deepCleanAds(data);
+                $done({ body: JSON.stringify(data) });
+                return;
+            }
+            $done({});
+            return;
+        }
+
+        // =====================================================================
+        // 4. Карточки товаров (/card/cards/) — ОРД/ЕРИД, бустеры, промо
         // =====================================================================
         if (url.includes("/card/cards/")) {
             const data = safeJSON(body);
@@ -123,7 +133,6 @@
                     }
                 }
 
-                // Рекомендации «похожие товары» внутри карточки
                 var similar = (data.data && data.data.similar) ? data.data.similar : data.similar;
                 if (Array.isArray(similar)) {
                     var clean = filterAdProducts(similar);
@@ -137,19 +146,18 @@
         }
 
         // =====================================================================
-        // 4. Выдача, поиск, рекомендации, блендер
+        // 5. Выдача, поиск, рекомендации, блендер (api-ios / catalog)
         // =====================================================================
         if (
             url.includes("api-ios.wildberries.ru") ||
-            url.includes("catalog.wb.ru") ||
-            url.includes("/catalog/") ||
-            url.includes("/search") ||
-            url.includes("/recom/")
+            url.includes("catalog.wb.ru")
         ) {
             const data = safeJSON(body);
             if (!data) { $done({}); return; }
 
-            // products
+            // Универсальная очистка ОРД/ЕРИД на любом api-ios ответе
+            deepStripOrd(data);
+
             var list = (data.data && Array.isArray(data.data.products))
                 ? data.data.products
                 : Array.isArray(data.products) ? data.products : null;
@@ -162,14 +170,12 @@
                 return;
             }
 
-            // items (блендер / карусели / preview)
             if (data.data && Array.isArray(data.data.items)) {
                 data.data.items = filterAdProducts(data.data.items);
                 $done({ body: JSON.stringify(data) });
                 return;
             }
 
-            // widgets / blocks (персональные виджеты рекомендаций)
             if (data.data && Array.isArray(data.data.widgets)) {
                 data.data.widgets = data.data.widgets.filter(function (w) {
                     if (!w) return true;
@@ -191,7 +197,7 @@
         }
 
         // =====================================================================
-        // 5. Розыгрыши и лотереи
+        // 6. Розыгрыши и лотереи
         // =====================================================================
         if (url.includes("chances.wildberries.ru")) {
             $done({ body: JSON.stringify([]) });
@@ -199,7 +205,7 @@
         }
 
         // =====================================================================
-        // 6. Рассрочки и подписки
+        // 7. Рассрочки и подписки
         // =====================================================================
         if (url.includes("installments-aggregator-bt.wildberries.ru")) {
             $done({ body: JSON.stringify({ installmentProduct: null, status: "success" }) });
@@ -212,7 +218,7 @@
         }
 
         // =====================================================================
-        // 7. Конфиги приложения (apps-config) — отключаем промо-фичи
+        // 8. Конфиги приложения (apps-config)
         // =====================================================================
         if (url.includes("apps-config.wildberries.ru")) {
             const data = safeJSON(body);
@@ -254,11 +260,6 @@
         return String(s || "").toLowerCase();
     }
 
-    /**
-     * Рекурсивно зануляет ВСЕ массивы внутри объекта.
-     * Ключевая функция для главной страницы — не зависит от имён ключей,
-     * убивает любые баннеры/тайлы/слайдеры, даже если WB добавит новые.
-     */
     function nukeAllArrays(obj) {
         if (!obj || typeof obj !== "object") return;
         for (var k in obj) {
@@ -292,6 +293,28 @@
             if (p.log.cpm) delete p.log.cpm;
             if (p.log.promoPosition) delete p.log.promoPosition;
             if (p.log.advertId) delete p.log.advertId;
+        }
+    }
+
+    /**
+     * Рекурсивно удаляет ОРД/ЕРИД/промо-поля из ЛЮБОГО объекта.
+     * Работает на любом эндпоинте — api-ios, home-service и т.д.
+     */
+    function deepStripOrd(obj) {
+        if (!obj || typeof obj !== "object") return;
+        var ordKeys = ["ordBannerMark", "ord_mark", "advParams", "advertId", "erid"];
+        for (var k in obj) {
+            if (ordKeys.indexOf(k) !== -1) {
+                delete obj[k];
+            } else if (Array.isArray(obj[k])) {
+                for (var i = 0; i < obj[k].length; i++) {
+                    if (obj[k][i] && typeof obj[k][i] === "object") {
+                        deepStripOrd(obj[k][i]);
+                    }
+                }
+            } else if (typeof obj[k] === "object" && obj[k] !== null) {
+                deepStripOrd(obj[k]);
+            }
         }
     }
 
