@@ -1,11 +1,11 @@
 ﻿/**
- * 🛡️ Ozon AdBlock & Deep Cleaner v3
- * Точечное удаление рекламных баннеров, промо Ozon Банка (оформление карт/кредитов), видео-рекламы и трекеров
+ * 🛡️ Ozon AdBlock & Deep Cleaner
+ * Вырезание рекламы, баннеров Ozon Банка (кредиты/карты), видео-рекламы и трекеров
  */
 
 const url = $request ? $request.url : "";
 
-// Список префиксов рекламных виджетов
+// Список рекламных типов виджетов Ozon Composer
 const AD_WIDGET_PREFIXES = [
     "advbanner",
     "adbanner",
@@ -37,18 +37,18 @@ function cleanOzonPayload(rawBody) {
 
         const deletedWidgetKeys = new Set();
 
-        // 1. Фильтрация widgetStates
+        // 1. Очистка widgetStates от рекламных виджетов
         if (data.widgetStates && typeof data.widgetStates === "object") {
             for (const key of Object.keys(data.widgetStates)) {
                 let shouldDelete = isAdWidget(key);
 
-                // Дополнительная проверка содержимого на промо оформления карты / кредитки в банковских экранах
+                // Дополнительная проверка на промо Ozon Банка
                 if (!shouldDelete) {
                     const rawVal = JSON.stringify(data.widgetStates[key]);
-                    // Если это промо-карточка оформления Ozon карты или кредитного продукта
+                    const lowerKey = key.toLowerCase();
                     if (
-                        (key.toLowerCase().includes("card") || key.toLowerCase().includes("curtain") || key.toLowerCase().includes("banner")) &&
-                        (rawVal.includes("Кредитная карта") || rawVal.includes("order-card") || rawVal.includes("orderCardType") || rawVal.includes("Оформить карту"))
+                        (lowerKey.includes("banner") || lowerKey.includes("card") || lowerKey.includes("curtain")) &&
+                        (rawVal.includes("Кредитная карта") || rawVal.includes("order-card") || rawVal.includes("До 500") || rawVal.includes("Оформить карту"))
                     ) {
                         shouldDelete = true;
                     }
@@ -74,7 +74,7 @@ function cleanOzonPayload(rawBody) {
                 return true;
             });
 
-            // Очистка дублирующихся разделителей
+            // Очистка идущих подряд лишних разделителей после удаления баннеров
             const cleanedLayout = [];
             for (let i = 0; i < data.layout.length; i++) {
                 const cur = data.layout[i];
