@@ -1,11 +1,11 @@
 ﻿/**
- * 🛡️ Ozon AdBlock & Deep Cleaner
- * Точечное удаление рекламных баннеров, видео-рекламы, промо-плашек и трекеров
+ * 🛡️ Ozon AdBlock & Deep Cleaner v3
+ * Точечное удаление рекламных баннеров, промо Ozon Банка (оформление карт/кредитов), видео-рекламы и трекеров
  */
 
 const url = $request ? $request.url : "";
 
-// Список рекламных типов виджетов Ozon Composer
+// Список префиксов рекламных виджетов
 const AD_WIDGET_PREFIXES = [
     "advbanner",
     "adbanner",
@@ -37,10 +37,24 @@ function cleanOzonPayload(rawBody) {
 
         const deletedWidgetKeys = new Set();
 
-        // 1. Очистка widgetStates от рекламных виджетов
+        // 1. Фильтрация widgetStates
         if (data.widgetStates && typeof data.widgetStates === "object") {
             for (const key of Object.keys(data.widgetStates)) {
-                if (isAdWidget(key)) {
+                let shouldDelete = isAdWidget(key);
+
+                // Дополнительная проверка содержимого на промо оформления карты / кредитки в банковских экранах
+                if (!shouldDelete) {
+                    const rawVal = JSON.stringify(data.widgetStates[key]);
+                    // Если это промо-карточка оформления Ozon карты или кредитного продукта
+                    if (
+                        (key.toLowerCase().includes("card") || key.toLowerCase().includes("curtain") || key.toLowerCase().includes("banner")) &&
+                        (rawVal.includes("Кредитная карта") || rawVal.includes("order-card") || rawVal.includes("orderCardType") || rawVal.includes("Оформить карту"))
+                    ) {
+                        shouldDelete = true;
+                    }
+                }
+
+                if (shouldDelete) {
                     delete data.widgetStates[key];
                     deletedWidgetKeys.add(key);
                     modified = true;
@@ -48,12 +62,11 @@ function cleanOzonPayload(rawBody) {
             }
         }
 
-        // 2. Очистка дерева layout, чтобы не оставалось пустых контейнеров на экране
+        // 2. Очистка дерева layout
         if (Array.isArray(data.layout)) {
             const initialLen = data.layout.length;
             
             data.layout = data.layout.filter(item => {
-                // Если элемент ссылается на удаленный рекламный виджет
                 const widgetKey = item.widgetKey || item.name || item.component || "";
                 if (deletedWidgetKeys.has(widgetKey) || isAdWidget(widgetKey)) {
                     return false;
@@ -61,7 +74,7 @@ function cleanOzonPayload(rawBody) {
                 return true;
             });
 
-            // Очистка идущих подряд лишних разделителей после удаления баннеров
+            // Очистка дублирующихся разделителей
             const cleanedLayout = [];
             for (let i = 0; i < data.layout.length; i++) {
                 const cur = data.layout[i];
@@ -72,7 +85,6 @@ function cleanOzonPayload(rawBody) {
                     const prevKey = (cleanedLayout[cleanedLayout.length - 1].widgetKey || 
                                      cleanedLayout[cleanedLayout.length - 1].name || 
                                      cleanedLayout[cleanedLayout.length - 1].component || "").toLowerCase();
-                    // Если два разделителя подряд - пропускаем дубль
                     if (prevKey.includes("separator")) {
                         continue;
                     }
@@ -86,7 +98,7 @@ function cleanOzonPayload(rawBody) {
             }
         }
 
-        // 3. Зачистка trackingPayloads (встроенная аналитика)
+        // 3. Зачистка встроенной аналитики
         if (data.trackingPayloads) {
             delete data.trackingPayloads;
             modified = true;

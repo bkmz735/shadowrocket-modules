@@ -1,5 +1,5 @@
-﻿#!name=Ozon NoAds & Clean Layout v2
-#!desc=Блокировка рекламы, видео-баннеров, промо-плашек (Ozon Банк, джекпоты, акции) и трекеров в приложении Ozon.
+﻿#!name=Ozon NoAds & Clean Layout v3
+#!desc=Блокировка рекламы, видео-баннеров, модальных окон, промо-плашек (Ozon Банк, карты, джекпоты, акции) и трекеров в приложении Ozon.
 #!category=AdBlock
 
 [Rule]
@@ -21,9 +21,13 @@ DOMAIN,p.ozon.ru,REJECT
 DOMAIN,sentry.ozon.ru,REJECT
 URL-REGEX,^https?:\/\/api\.ozon\.ru\/p-api\/tracker\/,REJECT
 
+# Подавление рекламных модалок и экшенов установки баннеров
+URL-REGEX,^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/_action\/v2\/setBannerAction,REJECT
+URL-REGEX,^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/v2\?url=\/modal\/alert\/,REJECT
+
 [Script]
-# Хирургическая вырезка рекламных блоков и промо-виджетов из Composer API
-ozon-cleaner = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js?v=20260904_02,timeout=15
+# Хирургическая вырезка рекламных блоков и промо-виджетов из всех страниц и модалок Ozon
+ozon-cleaner = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js?v=20260904_03,timeout=15
 
 [MITM]
 hostname = %APPEND% api.ozon.ru
