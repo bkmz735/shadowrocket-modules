@@ -1,11 +1,39 @@
 ﻿/**
  * 🛡️ Ozon AdBlock & Deep Cleaner
- * Вырезание рекламы, баннеров, чаевых, спама в чатах/уведомлениях и промо-блоков
+ * Вырезание рекламы, баннеров, чаевых и спам-диалогов в Сообщениях:
+ * «Скидки и акции», «Морковск», «Только для вас», «Ozon Travel / Травел лента» и др.
  */
 
 const url = $request ? $request.url : "";
 
-// Префиксы заведомо рекламных виджетов Ozon
+// Список спам-каналов и рекламных ботов в Сообщениях
+const SPAM_CHAT_KEYWORDS = [
+    "скидки и акции",
+    "морковск",
+    "только для вас",
+    "травел лента",
+    "ozon travel",
+    "ozon банк",
+    "акции и скидки",
+    "спецпредложения",
+    "розыгрыш",
+    "бонусы",
+    "мои уведомления",
+    "промо"
+];
+
+function isSpamChatText(text) {
+    if (!text || typeof text !== "string") return false;
+    const lower = text.toLowerCase();
+    for (const kw of SPAM_CHAT_KEYWORDS) {
+        if (lower.includes(kw)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Префиксы рекламных виджетов Composer
 const AD_WIDGET_PREFIXES = [
     "advbanner",
     "adbanner",
@@ -32,12 +60,12 @@ function isAdWidgetPrefix(key) {
 function shouldDeleteWidget(key, val) {
     const lowerKey = key.toLowerCase();
 
-    // 1. Блок баланса Ozon Карты НЕ ТРОГАЕМ!
+    // 1. Баланс Ozon Карты НЕ ТРОГАЕМ!
     if (lowerKey.startsWith("financewidget") || lowerKey.startsWith("financeheaderwidget")) {
         return false;
     }
 
-    // 2. Прямой матчинг по заведомо рекламным префиксам
+    // 2. Прямой матчинг по префиксам
     if (isAdWidgetPrefix(key)) {
         return true;
     }
@@ -69,32 +97,33 @@ function shouldDeleteWidget(key, val) {
     return false;
 }
 
-// Фильтрация спам-сообщений / рекламных пушей в чатах и уведомлениях
-function cleanMessengerPayload(data) {
-    try {
-        // Фильтрация списка чатов от спам-каналов Ozon («Акции», «Ozon Банк промо», «Скидки»)
-        if (Array.isArray(data.chats)) {
-            data.chats = data.chats.filter(c => {
-                const title = (c.title || c.name || "").toLowerCase();
-                const snippet = (c.lastMessageSnippet || c.snippet || "").toLowerCase();
-                return !(
-                    title.includes("акции") ||
-                    title.includes("скидки") ||
-                    title.includes("спецпредложения") ||
-                    title.includes("розыгрыш") ||
-                    snippet.includes("оформите карту") ||
-                    snippet.includes("до 1 000 000") ||
-                    snippet.includes("взять кредит")
-                );
+// Рекурсивная зачистка спам-чатов из любых массивов диалогов
+function filterChatsDeep(obj) {
+    if (!obj || typeof obj !== "object") return obj;
+
+    // 1. Если это массив чатов / диалогов
+    for (const key of Object.keys(obj)) {
+        const val = obj[key];
+        if (Array.isArray(val)) {
+            obj[key] = val.filter(item => {
+                if (!item || typeof item !== "object") return true;
+                const title = item.title || item.name || item.header || (item.chat && item.chat.title) || "";
+                const subtitle = item.subtitle || item.lastMessageSnippet || item.snippet || "";
+                if (isSpamChatText(title) || isSpamChatText(subtitle)) {
+                    return false;
+                }
+                return true;
             });
+            // Рекурсивно чистим дальше элементы массива
+            for (let i = 0; i < obj[key].length; i++) {
+                obj[key][i] = filterChatsDeep(obj[key][i]);
+            }
+        } else if (typeof val === "object") {
+            obj[key] = filterChatsDeep(val);
         }
-        // Очистка пуш-уведомлений внутри приложения
-        if (data.inAppPush || data.pushNotification) {
-            delete data.inAppPush;
-            delete data.pushNotification;
-        }
-    } catch (e) {}
-    return data;
+    }
+
+    return obj;
 }
 
 function cleanOzonPayload(rawBody) {
@@ -104,9 +133,15 @@ function cleanOzonPayload(rawBody) {
         let data = JSON.parse(rawBody);
         let modified = false;
 
-        // Если это ответ мессенджера/уведомлений
-        if (url.includes("messenger") || url.includes("chats")) {
-            data = cleanMessengerPayload(data);
+        // Если это сообщения, чаты или диалоги (любой эндпоинт мессенджера)
+        if (
+            url.includes("messenger") ||
+            url.includes("chats") ||
+            url.includes("communications") ||
+            data.chats ||
+            data.chatList
+        ) {
+            data = filterChatsDeep(data);
             return JSON.stringify(data);
         }
 
@@ -115,6 +150,13 @@ function cleanOzonPayload(rawBody) {
         // 1. Очистка widgetStates
         if (data.widgetStates && typeof data.widgetStates === "object") {
             for (const key of Object.keys(data.widgetStates)) {
+                // Если внутри widgetStates сидит список чатов (экран мессенджера в Composer)
+                if (key.toLowerCase().includes("chat") || key.toLowerCase().includes("messenger")) {
+                    data.widgetStates[key] = filterChatsDeep(data.widgetStates[key]);
+                    modified = true;
+                    continue;
+                }
+
                 if (shouldDeleteWidget(key, data.widgetStates[key])) {
                     delete data.widgetStates[key];
                     deletedWidgetKeys.add(key);
@@ -131,13 +173,12 @@ function cleanOzonPayload(rawBody) {
                 const widgetKey = item.widgetKey || item.name || item.component || "";
                 const lowerKey = widgetKey.toLowerCase();
 
-                // Баланс карты в ЛК оставляем всегда
                 if (lowerKey.includes("financewidget") || lowerKey.includes("financeheaderwidget")) {
                     return true;
                 }
 
                 if (
-                    lowerKey.includes("fintabbannerpriority") || // Баннер в банке
+                    lowerKey.includes("fintabbannerpriority") ||
                     lowerKey.includes("advbanner") ||
                     lowerKey.includes("advvideobannermobile") ||
                     lowerKey.includes("entrybannerwidget") ||
