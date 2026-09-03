@@ -42,41 +42,10 @@
             }
 
             // Главная страница (/api/v5/main)
+            // Возвращаем пустую data: {}, чтобы iOS-клиент полностью скрыл верхний контейнер каруселей без плейсхолдера
             if (url.includes("/main")) {
-                const data = JSON.parse(body);
-                if (data && data.data && typeof data.data === "object") {
-                    const adFields = [
-                        "topSliderNF",
-                        "topSlider",
-                        "smallTiles",
-                        "middleTiles",
-                        "bottomSlider",
-                        "thxForOrderSF",
-                        "brandsBanner",
-                        "popups",
-                        "defaultBanner",
-                        "placeholderBanner"
-                    ];
-
-                    for (let i = 0; i < adFields.length; i++) {
-                        const f = adFields[i];
-                        if (f in data.data) {
-                            if (Array.isArray(data.data[f])) {
-                                data.data[f] = [];
-                            } else if (typeof data.data[f] === "object" && data.data[f] !== null) {
-                                data.data[f] = null;
-                            }
-                            modified = true;
-                        }
-                    }
-
-                    // Если WB подставляет заглушку "Здесь все что вам нужно" в topSlider
-                    if (Array.isArray(data.data.topSliderNF)) data.data.topSliderNF = [];
-                    if (Array.isArray(data.data.topSlider)) data.data.topSlider = [];
-                    
-                    $done({ body: JSON.stringify(data) });
-                    return;
-                }
+                $done({ body: JSON.stringify({ data: {} }) });
+                return;
             }
 
             // Промо-страницы (/api/v2/promopages/mobile)
