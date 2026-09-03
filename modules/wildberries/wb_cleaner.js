@@ -1,11 +1,12 @@
 ﻿/**
- * 🫐 Wildberries AdBlock & Deep Cleaner
- * Вырезает:
- * 1. Главную карусель и баннеры акций (banners-bt)
- * 2. Баннеры кредитов/рассрочек WB Банка и лотереи ("Шансы")
- * 3. Рекламные виджеты и промо-баннеры в Личном Кабинете (ЛК)
- * 4. Конфигурационные флаги рекламы и каруселей (apps-config)
- * 5. Рекомендательные блоки и спонсорские товары в каталоге/поиске
+ * 🫐 Wildberries Deep AdBlocker & Cleaner
+ * Полная очистка на основе перехваченных структур:
+ * - topSliderNF, topSlider, smallTiles, thxForOrderSF в banners-bt/v5/main
+ * - brandsBanner и saleLabels в promopages/mobile
+ * - баннеры корзины api/v1/basket
+ * - лотереи и шансы в chances.wildberries.ru
+ * - подписки WB Клуб в gateway-subscriptions
+ * - рассрочки в installments-aggregator-bt
  */
 
 const url = $request ? $request.url : "";
@@ -15,69 +16,51 @@ if (!body) {
     $done({});
 } else {
     try {
+        let modified = false;
+
         // =========================================================================
-        // 1. Баннеры и промо-акции на главной: banners-bt.wildberries.ru
+        // 1. Главные баннеры и промо-слайдеры (banners-bt.wildberries.ru)
         // =========================================================================
         if (url.includes("banners-bt.wildberries.ru")) {
-            // Возвращаем пустую структуру баннеров
-            $done({ body: JSON.stringify({ banners: [], promo: [], items: [], data: [] }) });
-            return;
-        }
-
-        // =========================================================================
-        // 2. Лотереи, колесо фортуны и розыгрыши ("Шансы"): chances.wildberries.ru
-        // =========================================================================
-        if (url.includes("chances.wildberries.ru")) {
-            $done({ body: JSON.stringify({}) });
-            return;
-        }
-
-        // =========================================================================
-        // 3. Рассрочки и кредиты WB Банка: installments-aggregator-bt
-        // =========================================================================
-        if (url.includes("installments-aggregator-bt.wildberries.ru")) {
-            $done({ body: JSON.stringify({ status: "success", data: [] }) });
-            return;
-        }
-
-        // =========================================================================
-        // 4. Личный Кабинет (ЛК / Профиль): ui-bt.wildberries.ru/ui-bt/api/v1/profile
-        // =========================================================================
-        if (url.includes("ui-bt.wildberries.ru/ui-bt/api/v1/profile")) {
             const data = JSON.parse(body);
-            let modified = false;
 
-            function cleanSection(items) {
-                if (!Array.isArray(items)) return items;
-                return items.filter(item => {
-                    if (!item) return true;
-                    const type = String(item.type || item.kind || "").toLowerCase();
-                    const title = String(item.title || item.header || item.name || "").toLowerCase();
-                    const link = String(item.actionUrl || item.link || "").toLowerCase();
+            // /api/v5/main — верхний слайдер, плитки, баннеры после заказа
+            if (data && data.data && typeof data.data === "object") {
+                const adFields = [
+                    "topSliderNF",
+                    "topSlider",
+                    "smallTiles",
+                    "thxForOrderSF",
+                    "brandsBanner",
+                    "middleTiles",
+                    "bottomSlider",
+                    "popups"
+                ];
 
-                    // Вырезаем баннеры, промо-акции, оформление кредитов/рассрочек в ЛК
-                    if (type.includes("banner") || type.includes("promo") || type.includes("advert")) return false;
-                    if (title.includes("рассрочк") || title.includes("кредит") || title.includes("займ")) return false;
-                    if (link.includes("installment") || link.includes("credit") || link.includes("banner")) return false;
-
-                    return true;
-                });
+                for (const field of adFields) {
+                    if (Array.isArray(data.data[field]) && data.data[field].length > 0) {
+                        data.data[field] = [];
+                        modified = true;
+                    }
+                }
             }
 
-            if (data && data.data && typeof data.data === "object") {
-                for (const key in data.data) {
-                    if (Array.isArray(data.data[key])) {
-                        data.data[key] = cleanSection(data.data[key]);
-                        modified = true;
-                    }
-                }
-            } else if (data && typeof data === "object") {
-                for (const key in data) {
-                    if (Array.isArray(data[key])) {
-                        data[key] = cleanSection(data[key]);
-                        modified = true;
-                    }
-                }
+            // /api/v2/promopages/mobile — промо-страницы, брендовые баннеры
+            if (data && Array.isArray(data.data)) {
+                data.data = data.data.filter(block => {
+                    if (!block) return true;
+                    // Если блок содержит brandsBanner или рекламные saleLabels
+                    if (Array.isArray(block.brandsBanner)) return false;
+                    if (Array.isArray(block.saleLabels)) return false;
+                    return true;
+                });
+                modified = true;
+            }
+
+            // /api/v1/basket — баннеры в корзине
+            if (url.includes("/basket")) {
+                $done({ body: JSON.stringify({ data: [], items: [], banners: [] }) });
+                return;
             }
 
             if (modified) {
@@ -87,7 +70,32 @@ if (!body) {
         }
 
         // =========================================================================
-        // 5. Конфигурация приложения: apps-config.wildberries.ru
+        // 2. Розыгрыши, шансы и лотереи (chances.wildberries.ru)
+        // =========================================================================
+        if (url.includes("chances.wildberries.ru")) {
+            // Возвращаем пустой массив, чтобы плашка розыгрыша не показывалась
+            $done({ body: JSON.stringify([]) });
+            return;
+        }
+
+        // =========================================================================
+        // 3. Рассрочки и кредиты WB Банка (installments-aggregator-bt)
+        // =========================================================================
+        if (url.includes("installments-aggregator-bt.wildberries.ru")) {
+            $done({ body: JSON.stringify({ installmentProduct: null, status: "success" }) });
+            return;
+        }
+
+        // =========================================================================
+        // 4. Навязывание подписок (gateway-subscriptions.common.geo.paywb.com)
+        // =========================================================================
+        if (url.includes("gateway-subscriptions")) {
+            $done({ body: JSON.stringify({ data: [], subscriptions: [] }) });
+            return;
+        }
+
+        // =========================================================================
+        // 5. Конфигурация фичей (apps-config.wildberries.ru)
         // =========================================================================
         if (url.includes("apps-config.wildberries.ru/config/api/v2/reactive")) {
             const data = JSON.parse(body);
@@ -104,8 +112,11 @@ if (!body) {
                     if (data.reactive[key] && typeof data.reactive[key] === "object") {
                         data.reactive[key].enabled = false;
                         if (data.reactive[key].range) data.reactive[key].range.percentage = 0;
+                        modified = true;
                     }
                 }
+            }
+            if (modified) {
                 $done({ body: JSON.stringify(data) });
                 return;
             }
@@ -127,23 +138,17 @@ if (!body) {
         }
 
         // =========================================================================
-        // 6. Каталог и поиск (вырезание спонсорских товаров и бустеров)
+        // 6. Личный кабинет (ui-bt.wildberries.ru/ui-bt/api/v1/profile)
         // =========================================================================
-        if (url.includes("catalog.wb.ru") || url.includes("/search")) {
+        if (url.includes("ui-bt.wildberries.ru/ui-bt/api/v1/profile")) {
             const data = JSON.parse(body);
-            const products = data.data && Array.isArray(data.data.products) ? data.data.products : (Array.isArray(data.products) ? data.products : null);
-            if (products) {
-                const filtered = products.filter(item => {
-                    if (!item) return true;
-                    if (item.isPromo || item.isAdv || item.isAdvert || item.advertId) return false;
-                    if (item.log && (item.log.cpm || item.log.promoPosition || item.log.advertId)) return false;
-                    return true;
+            if (data && data.profile && Array.isArray(data.profile.widgets)) {
+                data.profile.widgets = data.profile.widgets.filter(w => {
+                    if (!w) return true;
+                    const type = String(w.type || "").toLowerCase();
+                    const title = String(w.title || "").toLowerCase();
+                    return !(type.includes("banner") || type.includes("promo") || title.includes("кредит") || title.includes("рассрочк"));
                 });
-                if (data.data && Array.isArray(data.data.products)) {
-                    data.data.products = filtered;
-                } else {
-                    data.products = filtered;
-                }
                 $done({ body: JSON.stringify(data) });
                 return;
             }

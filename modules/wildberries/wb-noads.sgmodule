@@ -1,5 +1,5 @@
 ﻿#!name=Wildberries NoAds & Clean Layout
-#!desc=Блокировка рекламы, каруселей, промо-баннеров, рассрочек и телеметрии Wildberries.
+#!desc=Блокировка рекламы, главных слайдеров, лотерей, промо-баннеров и телеметрии Wildberries.
 #!category=AdBlock
 
 [Rule]
@@ -8,14 +8,16 @@ DOMAIN,journal-bt.wildberries.ru,REJECT
 DOMAIN,a.wb.ru,REJECT
 DOMAIN,marketplace-sentry.wb.ru,REJECT
 DOMAIN,xapi.wildberries.ru,REJECT
+DOMAIN,statistics-bt.wildberries.ru,REJECT
 
-# 2. Внешняя реклама и трекеры
+# 2. Внешняя реклама, трекеры и видео-метрики
 DOMAIN-SUFFIX,googlesyndication.com,REJECT
 DOMAIN-SUFFIX,app-ads-services.com,REJECT
 DOMAIN-SUFFIX,app-analytics-services.com,REJECT
 DOMAIN-SUFFIX,app-measurement.com,REJECT
 DOMAIN-SUFFIX,firebase-settings.crashlytics.com,REJECT
 DOMAIN-SUFFIX,firebaselogging-pa.googleapis.com,REJECT
+DOMAIN-SUFFIX,litix.io,REJECT
 DOMAIN-SUFFIX,appmetrica.yandex.net,REJECT
 DOMAIN-SUFFIX,adjust.com,REJECT
 DOMAIN-SUFFIX,adjust.world,REJECT
@@ -24,8 +26,8 @@ DOMAIN-SUFFIX,vk-analytics.ru,REJECT
 DOMAIN-SUFFIX,tns-counter.ru,REJECT
 
 [Script]
-# Очистка баннеров, ЛК, рассрочек, лотерей и флагов рекламы
-wb-cleaner = type=http-response,pattern=^https?:\/\/.*(banners-bt\.wildberries\.ru\/api\/|chances\.wildberries\.ru|installments-aggregator-bt\.wildberries\.ru|ui-bt\.wildberries\.ru\/ui-bt\/api\/v1\/profile|apps-config\.wildberries\.ru\/config\/api\/v2\/(reactive|config)|catalog\.wb\.ru).*$,requires-body=1,max-size=2097152,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_cleaner.js,timeout=15
+# Очистка баннеров, слайдеров, лотерей, корзины и рассрочек
+wb-cleaner = type=http-response,pattern=^https?:\/\/.*(banners-bt\.wildberries\.ru\/api\/|chances\.wildberries\.ru\/chance-gateway|installments-aggregator-bt\.wildberries\.ru|gateway-subscriptions.*paywb\.com|apps-config\.wildberries\.ru\/config\/api\/v2\/(reactive|config)|ui-bt\.wildberries\.ru\/ui-bt\/api\/v1\/profile).*$,requires-body=1,max-size=2097152,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_cleaner.js,timeout=15
 
 [MITM]
-hostname = %APPEND% banners-bt.wildberries.ru, chances.wildberries.ru, installments-aggregator-bt.wildberries.ru, ui-bt.wildberries.ru, apps-config.wildberries.ru, catalog.wb.ru
+hostname = %APPEND% banners-bt.wildberries.ru, chances.wildberries.ru, installments-aggregator-bt.wildberries.ru, gateway-subscriptions.common.geo.paywb.com, apps-config.wildberries.ru, ui-bt.wildberries.ru
