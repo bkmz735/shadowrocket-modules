@@ -1,11 +1,11 @@
 ﻿/**
  * 🛡️ Ozon AdBlock & Deep Cleaner
- * Вырезание рекламы, баннеров Ozon Банка (кредиты/карты), чаевых («поблагодарить продавца»), видео-рекламы и трекеров
+ * Вырезание баннеров, чаевых продавцу, промо Ozon Банка (карты/кредиты), видео-рекламы и трекеров
  */
 
 const url = $request ? $request.url : "";
 
-// Префиксы заведомо рекламных виджетов Ozon Composer
+// Префиксы виджетов, подлежащих удалению
 const AD_WIDGET_PREFIXES = [
     "advbanner",
     "adbanner",
@@ -15,10 +15,12 @@ const AD_WIDGET_PREFIXES = [
     "advrefreshwithdelay",
     "promobanner",
     "adcarousel",
-    "rateitems" // Виджет «Оцените товары / Поблагодарить продавца (чаевые)» на главной
+    "rateitems",         // Оцените товары / Поблагодарить продавца (чаевые)
+    "uwidgetobject",     // Промо-баннеры в ЛК и категориях (object.grid1, banner)
+    "navigationblocks"   // Промо-блоки в профиле (если содержат рекламу)
 ];
 
-function isAdWidget(key) {
+function isAdWidgetPrefix(key) {
     if (!key) return false;
     const lower = key.toLowerCase();
     for (const prefix of AD_WIDGET_PREFIXES) {
@@ -30,50 +32,59 @@ function isAdWidget(key) {
 }
 
 function shouldDeleteWidget(key, val) {
-    if (isAdWidget(key)) return true;
-
     const lowerKey = key.toLowerCase();
+
+    // 1. Прямой матчинг по префиксу
+    if (isAdWidgetPrefix(key)) {
+        // Исключение: navigationBlocks удаляем только если внутри промо/реклама
+        if (lowerKey.startsWith("navigationblocks")) {
+            const s = JSON.stringify(val);
+            if (s.includes("кредит") || s.includes("карта") || s.includes("джекпот") || s.includes("банк")) {
+                return true;
+            }
+            return false;
+        }
+        return true;
+    }
+
     const str = typeof val === "string" ? val : JSON.stringify(val);
 
-    // 1. «Поблагодарить продавца» / Чаевые / Оценка товаров
+    // 2. «Поблагодарить продавца» / Чаевые / Оценка товаров
     if (
+        lowerKey.includes("rateitem") ||
+        lowerKey.includes("tipping") ||
         str.includes("поблагодарить") ||
         str.includes("Поблагодарить") ||
         str.includes("чаевые") ||
         str.includes("Чаевые") ||
-        str.includes("tips") ||
-        lowerKey.includes("rateitem") ||
-        lowerKey.includes("tipping")
+        str.includes("tips")
     ) {
         return true;
     }
 
-    // 2. Банковские промо-виджеты в ЛК и Банке («Кредитная карта», «до 1 000 000», карусель карт)
+    // 3. Банковские промо-баннеры («До 500 000 ₽», «Кредитная карта», «до 1 000 000», «Оформить карту»)
     if (
         lowerKey.includes("finance") ||
         lowerKey.includes("banner") ||
         lowerKey.includes("card") ||
         lowerKey.includes("curtain") ||
-        lowerKey.includes("tilescroll") || // горизонтальная карусель
-        lowerKey.includes("tilegrid")
+        lowerKey.includes("tilescroll") ||
+        lowerKey.includes("celllist")
     ) {
         if (
+            str.includes("До 500 000") ||
+            str.includes("До 500 000") ||
             str.includes("Кредитная карта") ||
             str.includes("кредитная карта") ||
             str.includes("1 000 000") ||
             str.includes("1 000 000") ||
             str.includes("1000000") ||
-            str.includes("До 500") ||
             str.includes("order-card") ||
             str.includes("orderCardType") ||
             str.includes("Оформить карту") ||
-            str.includes("Карта Ozon") ||
-            str.includes("Карта Озон")
+            str.includes("чтобы продлить лето")
         ) {
-            // Если это именно промо/оформление карты, а не баланс пользователя
-            if (str.includes("order") || str.includes("оформить") || str.includes("Оформить") || str.includes("credit") || str.includes("Кредит")) {
-                return true;
-            }
+            return true;
         }
     }
 
@@ -106,13 +117,24 @@ function cleanOzonPayload(rawBody) {
             
             data.layout = data.layout.filter(item => {
                 const widgetKey = item.widgetKey || item.name || item.component || "";
-                if (deletedWidgetKeys.has(widgetKey) || isAdWidget(widgetKey)) {
+                const lowerKey = widgetKey.toLowerCase();
+
+                // Проверка по имени компонента в layout
+                if (
+                    lowerKey.includes("fintabbannerpriority") || // Баннер в банке
+                    lowerKey.includes("advbanner") ||
+                    lowerKey.includes("advvideobannermobile") ||
+                    lowerKey.includes("entrybannerwidget") ||
+                    lowerKey.includes("rateitems") ||
+                    deletedWidgetKeys.has(widgetKey) ||
+                    isAdWidgetPrefix(widgetKey)
+                ) {
                     return false;
                 }
                 return true;
             });
 
-            // Очистка идущих подряд лишних разделителей после удаления баннеров
+            // Очистка идущих подряд лишних разделителей
             const cleanedLayout = [];
             for (let i = 0; i < data.layout.length; i++) {
                 const cur = data.layout[i];
