@@ -1,6 +1,7 @@
 ﻿/**
- * 🫐 Wildberries Cleaner v5 (Anti-Placeholder & Anti-Banner)
- * Полное удаление баннеров, ОРД-рекламы и дефолтных заглушек "Здесь есть всё"
+ * 🫐 Wildberries Cleaner & Diagnostic v6
+ * Чистит рекламу + выводит в консоль Shadowrocket итоговый вид ответов Главной и ЛК,
+ * чтобы точно видеть, что именно доходит до экрана!
  */
 
 (function () {
@@ -19,7 +20,9 @@
         if (url.includes("banners-bt.wildberries.ru")) {
             // В ЛК (/api/v3/account)
             if (url.includes("/account")) {
-                $done({ body: JSON.stringify({ data: null, banners: null, items: [] }) });
+                const cleanAccount = JSON.stringify({ data: null, banners: null, items: [] });
+                console.log("🫐 [WB CLEANER] Cleaned /api/v3/account -> null banners");
+                $done({ body: cleanAccount });
                 return;
             }
 
@@ -34,7 +37,6 @@
                 try {
                     const data = JSON.parse(body);
                     if (data && data.data && typeof data.data === "object") {
-                        // Поля рекламных баннеров и слайдеров
                         const adFields = [
                             "topSliderNF",
                             "topSlider",
@@ -53,19 +55,24 @@
                         for (let i = 0; i < adFields.length; i++) {
                             const f = adFields[i];
                             if (f in data.data) {
-                                // Если удалить ключ или поставить null, клиент не находит массив баннеров и не крутит карусель
                                 delete data.data[f];
                             }
                         }
 
-                        // Убираем флаги плейсхолдера
                         if ("hasBanners" in data.data) data.data.hasBanners = false;
                         if ("showBanners" in data.data) data.data.showBanners = false;
 
-                        $done({ body: JSON.stringify(data) });
+                        const out = JSON.stringify(data);
+                        console.log("\n==================== [WB MAIN OUTGOING JSON] ====================");
+                        console.log("[Ключи data.data]: " + Object.keys(data.data).join(", "));
+                        console.log("[Фрагмент ответа]: " + out.slice(0, 500));
+                        console.log("=================================================================\n");
+
+                        $done({ body: out });
                         return;
                     }
                 } catch (err) {
+                    console.log("🫐 [WB CLEANER ERROR main]: " + err);
                     $done({ body: JSON.stringify({ data: null }) });
                     return;
                 }
@@ -100,6 +107,7 @@
             try {
                 const data = JSON.parse(body);
                 if (data && typeof data === "object") {
+                    let removedCount = 0;
                     function deepCleanProfile(obj) {
                         if (!obj || typeof obj !== "object") return;
                         for (const k in obj) {
@@ -107,14 +115,23 @@
                                 obj[k] = obj[k].filter(function (item) {
                                     if (!item || typeof item !== "object") return true;
                                     const text = JSON.stringify(item).toLowerCase();
-                                    // Реклама брендов
-                                    if (text.includes("миксит") || text.includes("шейд") || text.includes("mixit") || text.includes("shade")) return false;
-                                    // Заглушка
-                                    if (text.includes("здесь все") || text.includes("здесь всё") || text.includes("что вам нужно")) return false;
-                                    // Кредиты / рассрочки
-                                    if (text.includes("рассрочк") || text.includes("кредит") || text.includes("займ")) return false;
+                                    if (text.includes("миксит") || text.includes("шейд") || text.includes("mixit") || text.includes("shade")) {
+                                        removedCount++;
+                                        return false;
+                                    }
+                                    if (text.includes("здесь все") || text.includes("здесь всё") || text.includes("что вам нужно")) {
+                                        removedCount++;
+                                        return false;
+                                    }
+                                    if (text.includes("рассрочк") || text.includes("кредит") || text.includes("займ")) {
+                                        removedCount++;
+                                        return false;
+                                    }
                                     const type = String(item.type || item.kind || item.blockType || "").toLowerCase();
-                                    if (type.includes("banner") || type.includes("promo") || type.includes("advert")) return false;
+                                    if (type.includes("banner") || type.includes("promo") || type.includes("advert")) {
+                                        removedCount++;
+                                        return false;
+                                    }
                                     return true;
                                 });
                             } else if (typeof obj[k] === "object") {
@@ -123,7 +140,14 @@
                         }
                     }
                     deepCleanProfile(data);
-                    $done({ body: JSON.stringify(data) });
+
+                    const out = JSON.stringify(data);
+                    console.log("\n==================== [WB PROFILE OUTGOING JSON] ====================");
+                    console.log("[Удалено мусорных виджетов]: " + removedCount);
+                    console.log("[Фрагмент профиля]: " + out.slice(0, 500));
+                    console.log("====================================================================\n");
+
+                    $done({ body: out });
                     return;
                 }
             } catch (e) {}
