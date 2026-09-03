@@ -1,6 +1,6 @@
 ﻿/**
  * 🛡️ Ozon AdBlock & Deep Cleaner
- * Вырезание рекламы, баннеров, чаевых и промо-акций
+ * Вырезание рекламы, баннеров, чаевых, промо-каруселей и сохранение баланса Ozon Карты
  */
 
 const url = $request ? $request.url : "";
@@ -32,7 +32,7 @@ function isAdWidgetPrefix(key) {
 function shouldDeleteWidget(key, val) {
     const lowerKey = key.toLowerCase();
 
-    // 1. АБСОЛЮТНЫЙ ЗАПРЕТ НА УДАЛЕНИЕ И МОДИФИКАЦИЮ ЛЮБЫХ ВИДЖЕТОВ ФИНАНСОВ В ЛК
+    // 1. Блок баланса Ozon Карты НЕ ТРОГАЕМ!
     if (lowerKey.startsWith("financewidget") || lowerKey.startsWith("financeheaderwidget")) {
         return false;
     }
@@ -44,7 +44,22 @@ function shouldDeleteWidget(key, val) {
 
     const str = typeof val === "string" ? val : JSON.stringify(val);
 
-    // 3. «Поблагодарить продавца» / Чаевые
+    // 3. Отдельная рекламная листалка/карусель (кредиты, займы, промо-карты)
+    if (lowerKey.startsWith("tilescroll") || lowerKey.startsWith("celllist")) {
+        if (
+            str.includes("Кредитная карта") ||
+            str.includes("кредитная карта") ||
+            str.includes("1 000 000") ||
+            str.includes("1 000 000") ||
+            str.includes("1000000") ||
+            str.includes("Рассрочка") ||
+            str.includes("рассрочка")
+        ) {
+            return true;
+        }
+    }
+
+    // 4. «Поблагодарить продавца» / Чаевые
     if (
         lowerKey.includes("rateitem") ||
         lowerKey.includes("tipping") ||
@@ -57,7 +72,7 @@ function shouldDeleteWidget(key, val) {
         return true;
     }
 
-    // 4. Баннер кредита в Ozon Банке (banklanding)
+    // 5. Баннер кредита в Ozon Банке (banklanding)
     if (
         lowerKey.includes("adbanner") ||
         str.includes("До 500 000") ||
@@ -97,7 +112,7 @@ function cleanOzonPayload(rawBody) {
                 const widgetKey = item.widgetKey || item.name || item.component || "";
                 const lowerKey = widgetKey.toLowerCase();
 
-                // Финансы и шапку финансов в ЛК не трогаем ни в коем случае!
+                // Баланс карты в ЛК оставляем всегда
                 if (lowerKey.includes("financewidget") || lowerKey.includes("financeheaderwidget")) {
                     return true;
                 }
