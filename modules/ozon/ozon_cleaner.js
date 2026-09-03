@@ -1,6 +1,6 @@
 ﻿/**
  * 🛡️ Ozon AdBlock & Deep Cleaner
- * Вырезание рекламы, баннеров, чаевых и рекламной PNG-карусели из вкладки Финансы
+ * Вырезание рекламы, баннеров, чаевых, спама в чатах/уведомлениях и промо-блоков
  */
 
 const url = $request ? $request.url : "";
@@ -29,43 +29,10 @@ function isAdWidgetPrefix(key) {
     return false;
 }
 
-// Очистка каруселей и промо-баннеров внутри блока Финансов
-function cleanFinanceWidget(widget) {
-    if (!widget || typeof widget !== "object") return widget;
-
-    try {
-        // 1. Если внутри виджета есть массив промо-баннеров/картинок
-        if (Array.isArray(widget.banners)) {
-            delete widget.banners;
-        }
-        if (Array.isArray(widget.slides)) {
-            delete widget.slides;
-        }
-        if (Array.isArray(widget.carousel)) {
-            delete widget.carousel;
-        }
-
-        // 2. Если внутри лежит отдельный блок промо-карусели с картинками
-        for (const k of Object.keys(widget)) {
-            const lowerK = k.toLowerCase();
-            if (
-                lowerK.includes("carousel") ||
-                lowerK.includes("banner") ||
-                lowerK.includes("promo") ||
-                lowerK.includes("slider")
-            ) {
-                delete widget[k];
-            }
-        }
-    } catch (e) {}
-
-    return widget;
-}
-
 function shouldDeleteWidget(key, val) {
     const lowerKey = key.toLowerCase();
 
-    // 1. Основной блок финансов не удаляем целиком, чтобы не пропали счета/карты
+    // 1. Блок баланса Ozon Карты НЕ ТРОГАЕМ!
     if (lowerKey.startsWith("financewidget") || lowerKey.startsWith("financeheaderwidget")) {
         return false;
     }
@@ -77,28 +44,7 @@ function shouldDeleteWidget(key, val) {
 
     const str = typeof val === "string" ? val : JSON.stringify(val);
 
-    // 3. Отдельная рекламная карусель (PNG-картинки, слайдеры, кредитки, промо Ozon Банка)
-    if (
-        lowerKey.includes("carousel") ||
-        lowerKey.includes("slider") ||
-        lowerKey.includes("banner") ||
-        lowerKey.includes("cbottom") ||
-        lowerKey.includes("tilescroll")
-    ) {
-        if (
-            str.includes("sellerassets") ||
-            str.includes(".png") ||
-            str.includes(".jpg") ||
-            str.includes(".jpeg")
-        ) {
-            // Если это промо-баннер/карусель, а не история заказов/товары
-            if (str.includes("adv") || str.includes("promo") || str.includes("credit") || str.includes("order-card") || str.includes("До 500") || str.includes("1 000 000")) {
-                return true;
-            }
-        }
-    }
-
-    // 4. «Поблагодарить продавца» / Чаевые
+    // 3. «Поблагодарить продавца» / Чаевые
     if (
         lowerKey.includes("rateitem") ||
         lowerKey.includes("tipping") ||
@@ -111,7 +57,7 @@ function shouldDeleteWidget(key, val) {
         return true;
     }
 
-    // 5. Баннер кредита в Ozon Банке (banklanding)
+    // 4. Баннер кредита в Ozon Банке (banklanding)
     if (
         lowerKey.includes("adbanner") ||
         str.includes("До 500 000") ||
@@ -123,27 +69,52 @@ function shouldDeleteWidget(key, val) {
     return false;
 }
 
+// Фильтрация спам-сообщений / рекламных пушей в чатах и уведомлениях
+function cleanMessengerPayload(data) {
+    try {
+        // Фильтрация списка чатов от спам-каналов Ozon («Акции», «Ozon Банк промо», «Скидки»)
+        if (Array.isArray(data.chats)) {
+            data.chats = data.chats.filter(c => {
+                const title = (c.title || c.name || "").toLowerCase();
+                const snippet = (c.lastMessageSnippet || c.snippet || "").toLowerCase();
+                return !(
+                    title.includes("акции") ||
+                    title.includes("скидки") ||
+                    title.includes("спецпредложения") ||
+                    title.includes("розыгрыш") ||
+                    snippet.includes("оформите карту") ||
+                    snippet.includes("до 1 000 000") ||
+                    snippet.includes("взять кредит")
+                );
+            });
+        }
+        // Очистка пуш-уведомлений внутри приложения
+        if (data.inAppPush || data.pushNotification) {
+            delete data.inAppPush;
+            delete data.pushNotification;
+        }
+    } catch (e) {}
+    return data;
+}
+
 function cleanOzonPayload(rawBody) {
     if (!rawBody) return rawBody;
 
     try {
-        const data = JSON.parse(rawBody);
+        let data = JSON.parse(rawBody);
         let modified = false;
+
+        // Если это ответ мессенджера/уведомлений
+        if (url.includes("messenger") || url.includes("chats")) {
+            data = cleanMessengerPayload(data);
+            return JSON.stringify(data);
+        }
 
         const deletedWidgetKeys = new Set();
 
         // 1. Очистка widgetStates
         if (data.widgetStates && typeof data.widgetStates === "object") {
             for (const key of Object.keys(data.widgetStates)) {
-                const lowerKey = key.toLowerCase();
-
-                // Если это сам блок финансов — зачищаем только вложенную карусель/промо-слайды
-                if (lowerKey.startsWith("financewidget")) {
-                    data.widgetStates[key] = cleanFinanceWidget(data.widgetStates[key]);
-                    modified = true;
-                    continue;
-                }
-
                 if (shouldDeleteWidget(key, data.widgetStates[key])) {
                     delete data.widgetStates[key];
                     deletedWidgetKeys.add(key);
@@ -160,6 +131,7 @@ function cleanOzonPayload(rawBody) {
                 const widgetKey = item.widgetKey || item.name || item.component || "";
                 const lowerKey = widgetKey.toLowerCase();
 
+                // Баланс карты в ЛК оставляем всегда
                 if (lowerKey.includes("financewidget") || lowerKey.includes("financeheaderwidget")) {
                     return true;
                 }

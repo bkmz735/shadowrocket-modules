@@ -1,9 +1,9 @@
 ﻿#!name=Ozon NoAds & Clean Layout
-#!desc=Блокировка рекламы, видео-баннеров, модалок, промо Ozon Банка (карты/кредиты) и внешних рекламных сетей.
+#!desc=Блокировка рекламы, видео-баннеров, модалок, промо Ozon Банка (карты/кредиты), спам-уведомлений и трекеров.
 #!category=AdBlock
 
 [Rule]
-# Внешние трекеры, аналитика и рекламные сети (включая банковские)
+# Внешние трекеры, аналитика и рекламные сети
 DOMAIN-SUFFIX,appmetrica.yandex.net,REJECT
 DOMAIN-SUFFIX,mobile.yandex.net,REJECT
 DOMAIN-SUFFIX,an.yandex.ru,REJECT
@@ -24,14 +24,16 @@ DOMAIN,p.ozon.ru,REJECT
 DOMAIN,sentry.ozon.ru,REJECT
 DOMAIN,io-bank.ozone.ru,REJECT
 URL-REGEX,^https?:\/\/api\.ozon\.ru\/p-api\/tracker\/,REJECT
+URL-REGEX,^https?:\/\/api\.ozon\.ru\/p-api\/perf-metrics-collector\/,REJECT
 
-# Подавление всплывающих модалок и экшенов показа баннеров
+# Подавление всплывающих модалок, промо-пушей и экшенов показа баннеров
 URL-REGEX,^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/_action\/v2\/setBannerAction,REJECT
+URL-REGEX,^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/_action\/inAppPushAction,REJECT
 URL-REGEX,^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/v2\?url=\/modal\/alert\/,REJECT
 
 [Script]
-# Вырезка рекламных блоков и баннеров из Composer API (включая /finance/banklanding)
-ozon-cleaner = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js,timeout=15
+# Вырезка рекламных блоков, баннеров и спам-рассылок
+ozon-cleaner = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/(page\/json|.*messenger|.*chats)\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js,timeout=15
 
 [MITM]
 hostname = %APPEND% api.ozon.ru
