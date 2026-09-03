@@ -1,20 +1,15 @@
-﻿#!name=Wildberries DNS Blocker (Pure & 100% Stable)
-#!desc=Абсолютно стабильная блокировка рекламы и спама телеметрии WB на уровне DNS/TCP без MITM и без скриптов (VPN не вылетает).
+﻿#!name=Wildberries NoAds & Clean Layout
+#!desc=Блокировка рекламы, каруселей, промо-баннеров, рассрочек и телеметрии Wildberries.
 #!category=AdBlock
 
 [Rule]
-# 1. Подавление шквала фоновой телеметрии WB (главная причина падений VPN)
+# 1. Подавление спама телеметрии WB (устраняет причину падений VPN)
 DOMAIN,journal-bt.wildberries.ru,REJECT
 DOMAIN,a.wb.ru,REJECT
 DOMAIN,marketplace-sentry.wb.ru,REJECT
 DOMAIN,xapi.wildberries.ru,REJECT
 
-# 2. Сервисы баннеров, акций и лотерей WB
-DOMAIN,banners-bt.wildberries.ru,REJECT
-DOMAIN,banners.wb.ru,REJECT
-DOMAIN,chances.wildberries.ru,REJECT
-
-# 3. Внешние трекеры и рекламные сети
+# 2. Внешняя реклама и трекеры
 DOMAIN-SUFFIX,googlesyndication.com,REJECT
 DOMAIN-SUFFIX,app-ads-services.com,REJECT
 DOMAIN-SUFFIX,app-analytics-services.com,REJECT
@@ -27,3 +22,10 @@ DOMAIN-SUFFIX,adjust.world,REJECT
 DOMAIN-SUFFIX,top-fwz1.mail.ru,REJECT
 DOMAIN-SUFFIX,vk-analytics.ru,REJECT
 DOMAIN-SUFFIX,tns-counter.ru,REJECT
+
+[Script]
+# Очистка баннеров, ЛК, рассрочек, лотерей и флагов рекламы
+wb-cleaner = type=http-response,pattern=^https?:\/\/.*(banners-bt\.wildberries\.ru\/api\/|chances\.wildberries\.ru|installments-aggregator-bt\.wildberries\.ru|ui-bt\.wildberries\.ru\/ui-bt\/api\/v1\/profile|apps-config\.wildberries\.ru\/config\/api\/v2\/(reactive|config)|catalog\.wb\.ru).*$,requires-body=1,max-size=2097152,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_cleaner.js,timeout=15
+
+[MITM]
+hostname = %APPEND% banners-bt.wildberries.ru, chances.wildberries.ru, installments-aggregator-bt.wildberries.ru, ui-bt.wildberries.ru, apps-config.wildberries.ru, catalog.wb.ru
