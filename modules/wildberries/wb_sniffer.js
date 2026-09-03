@@ -1,9 +1,7 @@
 ﻿/**
- * 🕵️‍♂️ Wildberries Precise Target Finder
- * Логирует точные URL и JSON-структуры тех самых мест:
- * 1. Экран ЛК и его баннеры
- * 2. Главная страница и плейсхолдер
- * 3. Карточки с рекламой в выдаче
+ * 🕵️‍♂️ WB Exact Structure Dumper
+ * Выводит точный JSON ответов /api/v5/main и /api/v1/profile,
+ * чтобы увидеть ключи, управляющие показом/скрытием контейнера заглушки.
  */
 
 (function () {
@@ -11,26 +9,20 @@
     const body = (typeof $response !== "undefined" && $response.body) ? $response.body : null;
 
     if (body) {
-        try {
-            const lowerBody = body.toLowerCase();
-            const hitWords = ["миксит", "mixit", "шейд", "shade", "здесь все", "здесь всё", "реклама"];
-            const matched = hitWords.filter(w => lowerBody.includes(w));
+        if (url.includes("banners-bt.wildberries.ru/api/v5/main")) {
+            console.log("\n==================== [MAIN BANNERS ORIG JSON] ====================");
+            console.log("[URL]: " + url);
+            // Печатаем первые 3000 символов оригинального ответа главной
+            console.log(body.slice(0, 3000));
+            console.log("==================================================================\n");
+        }
 
-            if (matched.length > 0) {
-                console.log(`\n🚨🚨🚨 [WB TARGET CAPTURED!] 🚨🚨🚨`);
-                console.log(`[URL]: ${url}`);
-                console.log(`[НАЙДЕННЫЕ СЛОВА]: ${matched.join(", ")}`);
-
-                // Показываем фрагмент ответа, где встретилось слово
-                matched.forEach(w => {
-                    const pos = lowerBody.indexOf(w);
-                    const snippet = body.slice(Math.max(0, pos - 150), Math.min(body.length, pos + 250));
-                    console.log(`\n🔍 [КОНТЕКСТ ДЛЯ "${w}"]:`);
-                    console.log(`...${snippet}...\n`);
-                });
-                console.log(`========================================\n`);
-            }
-        } catch (e) {}
+        if (url.includes("ui-bt.wildberries.ru/ui-bt/api/v1/profile")) {
+            console.log("\n==================== [PROFILE ORIG JSON] ====================");
+            console.log("[URL]: " + url);
+            console.log(body.slice(0, 3000));
+            console.log("=============================================================\n");
+        }
     }
 
     $done({});
