@@ -1,7 +1,16 @@
 ﻿/**
- * 🫐 Wildberries Bulletproof Cleaner
- * Устраняет баннеры, карусели, розыгрыши и рекламу WB.
- * Обернут в самовызывающуюся функцию (IIFE), чтобы return работал корректно в JSCore iOS.
+ * 🫐 Wildberries AdBlock & Deep Cleaner
+ * 
+ * Точечная зачистка:
+ * 1. banners-bt.wildberries.ru:
+ *    - Полное удаление баннеров (/v5/main, /v3/account, /v2/promopages)
+ *    - Заглушка дефолтного баннера-плейсхолдера ("Здесь всё, что вам нужно")
+ * 2. api-ios.wildberries.ru / catalog.wb.ru:
+ *    - Вырезка рекламных блоков и спонсорских товаров среди ленты товаров
+ * 3. ui-bt.wildberries.ru & banners-bt /v3/account:
+ *    - Вырезка рекламных слайдеров в ЛК (ООО Шейд, ООО Миксит, баннеры в профиле)
+ * 4. chances.wildberries.ru:
+ *    - Глушение лотерей и розыгрышей
  */
 
 (function () {
@@ -16,128 +25,162 @@
     try {
         let modified = false;
 
-        // 1. Главные баннеры и карусели (banners-bt.wildberries.ru)
+        // =========================================================================
+        // 1. Баннеры на главной, в ЛК и корзине (banners-bt.wildberries.ru)
+        // =========================================================================
         if (url.includes("banners-bt.wildberries.ru")) {
-            const data = JSON.parse(body);
-
-            // Главный слайдер акций (/api/v5/main)
-            if (data && data.data && typeof data.data === "object") {
-                const adFields = [
-                    "topSliderNF",
-                    "topSlider",
-                    "smallTiles",
-                    "thxForOrderSF",
-                    "brandsBanner",
-                    "middleTiles",
-                    "bottomSlider",
-                    "popups"
-                ];
-
-                for (let i = 0; i < adFields.length; i++) {
-                    const f = adFields[i];
-                    if (Array.isArray(data.data[f]) && data.data[f].length > 0) {
-                        data.data[f] = [];
-                        modified = true;
-                    }
-                }
+            // В ЛК (/api/v3/account) — именно здесь крутятся "ООО Шейд", "ООО Миксит" в профиле!
+            if (url.includes("/account")) {
+                $done({ body: JSON.stringify({ data: {}, banners: [], items: [] }) });
+                return;
             }
 
-            // Промо-страницы (/api/v2/promopages/mobile)
-            if (data && Array.isArray(data.data)) {
-                data.data = data.data.filter(function (block) {
-                    if (!block) return true;
-                    if (Array.isArray(block.brandsBanner)) return false;
-                    if (Array.isArray(block.saleLabels)) return false;
-                    return true;
-                });
-                modified = true;
-            }
-
-            // Баннеры в корзине (/api/v1/basket)
+            // В корзине (/api/v1/basket)
             if (url.includes("/basket")) {
                 $done({ body: JSON.stringify({ data: [], items: [], banners: [] }) });
                 return;
             }
 
-            if (modified) {
+            // Главная страница (/api/v5/main)
+            if (url.includes("/main")) {
+                const data = JSON.parse(body);
+                if (data && data.data && typeof data.data === "object") {
+                    const adFields = [
+                        "topSliderNF",
+                        "topSlider",
+                        "smallTiles",
+                        "middleTiles",
+                        "bottomSlider",
+                        "thxForOrderSF",
+                        "brandsBanner",
+                        "popups",
+                        "defaultBanner",
+                        "placeholderBanner"
+                    ];
+
+                    for (let i = 0; i < adFields.length; i++) {
+                        const f = adFields[i];
+                        if (f in data.data) {
+                            if (Array.isArray(data.data[f])) {
+                                data.data[f] = [];
+                            } else if (typeof data.data[f] === "object" && data.data[f] !== null) {
+                                data.data[f] = null;
+                            }
+                            modified = true;
+                        }
+                    }
+
+                    // Если WB подставляет заглушку "Здесь все что вам нужно" в topSlider
+                    if (Array.isArray(data.data.topSliderNF)) data.data.topSliderNF = [];
+                    if (Array.isArray(data.data.topSlider)) data.data.topSlider = [];
+                    
+                    $done({ body: JSON.stringify(data) });
+                    return;
+                }
+            }
+
+            // Промо-страницы (/api/v2/promopages/mobile)
+            if (url.includes("/promopages")) {
+                const data = JSON.parse(body);
+                if (data && Array.isArray(data.data)) {
+                    data.data = data.data.filter(function (block) {
+                        if (!block) return true;
+                        if (Array.isArray(block.brandsBanner)) return false;
+                        if (Array.isArray(block.saleLabels)) return false;
+                        return true;
+                    });
+                    $done({ body: JSON.stringify(data) });
+                    return;
+                }
+            }
+
+            $done({ body: JSON.stringify({ data: {} }) });
+            return;
+        }
+
+        // =========================================================================
+        // 2. Личный кабинет (ui-bt.wildberries.ru/ui-bt/api/v1/profile)
+        // =========================================================================
+        if (url.includes("ui-bt.wildberries.ru/ui-bt/api/v1/profile")) {
+            const data = JSON.parse(body);
+            if (data && typeof data === "object") {
+                function deepCleanProfile(obj) {
+                    if (!obj || typeof obj !== "object") return;
+                    for (const k in obj) {
+                        if (Array.isArray(obj[k])) {
+                            obj[k] = obj[k].filter(function (item) {
+                                if (!item || typeof item !== "object") return true;
+                                const text = JSON.stringify(item).toLowerCase();
+                                if (text.includes("миксит") || text.includes("шейд") || text.includes("mixit") || text.includes("shade")) return false;
+                                if (text.includes("рассрочк") || text.includes("кредит") || text.includes("займ")) return false;
+                                const type = String(item.type || item.kind || "").toLowerCase();
+                                if (type.includes("banner") || type.includes("promo") || type.includes("advert")) return false;
+                                return true;
+                            });
+                        } else if (typeof obj[k] === "object") {
+                            deepCleanProfile(obj[k]);
+                        }
+                    }
+                }
+                deepCleanProfile(data);
                 $done({ body: JSON.stringify(data) });
                 return;
             }
         }
 
-        // 2. Лотереи и розыгрыши ("Шансы")
+        // =========================================================================
+        // 3. Выдача товаров и лента (api-ios.wildberries.ru / catalog.wb.ru)
+        // =========================================================================
+        if (
+            url.includes("api-ios.wildberries.ru") ||
+            url.includes("catalog.wb.ru") ||
+            url.includes("/catalog/") ||
+            url.includes("/search")
+        ) {
+            const data = JSON.parse(body);
+            // Проверяем список товаров
+            let list = null;
+            if (data && data.data && Array.isArray(data.data.products)) list = data.data.products;
+            else if (data && Array.isArray(data.products)) list = data.products;
+
+            if (list) {
+                const filtered = list.filter(function (item) {
+                    if (!item || typeof item !== "object") return true;
+                    // Автореклама, спонсорские бустеры, бейджи промо
+                    if (item.isPromo || item.isAdv || item.isAdvert || item.is_advert || item.advertId) return false;
+                    if (item.log && (item.log.cpm || item.log.promoPosition || item.log.advertId)) return false;
+                    const badge = String(item.badge || "").toLowerCase();
+                    if (badge.includes("реклама") || badge.includes("промо")) return false;
+                    return true;
+                });
+
+                if (data.data && Array.isArray(data.data.products)) data.data.products = filtered;
+                else data.products = filtered;
+
+                $done({ body: JSON.stringify(data) });
+                return;
+            }
+        }
+
+        // =========================================================================
+        // 4. Розыгрыши и лотереи ("Шансы")
+        // =========================================================================
         if (url.includes("chances.wildberries.ru")) {
             $done({ body: JSON.stringify([]) });
             return;
         }
 
-        // 3. Рассрочки и кредиты WB Банка
+        // =========================================================================
+        // 5. Рассрочки и подписки
+        // =========================================================================
         if (url.includes("installments-aggregator-bt.wildberries.ru")) {
             $done({ body: JSON.stringify({ installmentProduct: null, status: "success" }) });
             return;
         }
 
-        // 4. Навязывание платных подписок (WB Клуб)
         if (url.includes("gateway-subscriptions")) {
             $done({ body: JSON.stringify({ data: [], subscriptions: [] }) });
             return;
-        }
-
-        // 5. Конфигурация реактивных фичей (apps-config)
-        if (url.includes("apps-config.wildberries.ru/config/api/v2/reactive")) {
-            const data = JSON.parse(body);
-            if (data && data.reactive) {
-                const bannerKeys = [
-                    "enableNewBannerBank",
-                    "enableNewBannerForce",
-                    "enableNewBannerService",
-                    "enableSoftBannerColForce",
-                    "enableSoftBannerExpForce",
-                    "enableNewFlowForPromocodes"
-                ];
-                for (let i = 0; i < bannerKeys.length; i++) {
-                    const k = bannerKeys[i];
-                    if (data.reactive[k] && typeof data.reactive[k] === "object") {
-                        data.reactive[k].enabled = false;
-                        if (data.reactive[k].range) data.reactive[k].range.percentage = 0;
-                        modified = true;
-                    }
-                }
-            }
-            if (modified) {
-                $done({ body: JSON.stringify(data) });
-                return;
-            }
-        }
-
-        if (url.includes("apps-config.wildberries.ru/config/api/v2/config")) {
-            const data = JSON.parse(body);
-            if (data && data.flags) {
-                data.flags["allNewRecoSearchApiCarouselCP"] = false;
-                data.flags["bannerWbClubOn1SHKAbTesting"] = false;
-                data.flags["enableBrandBanners"] = false;
-                data.flags["enableBankBanner"] = false;
-                data.flags["disableNapiBrandBanners"] = true;
-                data.flags["disableNapiCatalogInBanners"] = true;
-                data.flags["disableAllPageForSellerRecommendations"] = true;
-                $done({ body: JSON.stringify(data) });
-                return;
-            }
-        }
-
-        // 6. Личный кабинет (ЛК)
-        if (url.includes("ui-bt.wildberries.ru/ui-bt/api/v1/profile")) {
-            const data = JSON.parse(body);
-            if (data && data.profile && Array.isArray(data.profile.widgets)) {
-                data.profile.widgets = data.profile.widgets.filter(function (w) {
-                    if (!w) return true;
-                    const type = String(w.type || "").toLowerCase();
-                    const title = String(w.title || "").toLowerCase();
-                    return !(type.includes("banner") || type.includes("promo") || title.includes("кредит") || title.includes("рассрочк"));
-                });
-                $done({ body: JSON.stringify(data) });
-                return;
-            }
         }
 
         $done({});
