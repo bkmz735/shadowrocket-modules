@@ -1,19 +1,15 @@
-﻿#!name=Wildberries NoAds & Clean Layout
-#!desc=Блокировка рекламы, промо-баннеров, авторекламы в поиске и телеметрии в приложении Wildberries на iOS.
+﻿#!name=Wildberries NoAds (Fast & Stable)
+#!desc=Блокировка рекламы, промо-баннеров и телеметрии Wildberries без перегрузки VPN.
 #!category=AdBlock
 
 [Rule]
-# Внутренняя телеметрия, журнал кликов и трекинг Wildberries
+# 1. Жесткая отсечка фонового спама телеметрии WB (устраняет перегрузку)
 DOMAIN,journal-bt.wildberries.ru,REJECT
 DOMAIN,a.wb.ru,REJECT
 DOMAIN,marketplace-sentry.wb.ru,REJECT
-URL-REGEX,^https?:\/\/xapi\.wildberries\.ru\/stat\/api\/,REJECT
+DOMAIN,xapi.wildberries.ru,REJECT
 
-# Сервисы баннеров и промо-акций
-DOMAIN,banners-bt.wildberries.ru,REJECT
-DOMAIN,banners.wb.ru,REJECT
-
-# Внешние рекламные сети, трекеры и аналитика
+# 2. Внешняя реклама и трекеры
 DOMAIN-SUFFIX,googlesyndication.com,REJECT
 DOMAIN-SUFFIX,app-ads-services.com,REJECT
 DOMAIN-SUFFIX,app-analytics-services.com,REJECT
@@ -28,8 +24,8 @@ DOMAIN-SUFFIX,vk-analytics.ru,REJECT
 DOMAIN-SUFFIX,tns-counter.ru,REJECT
 
 [Script]
-# Очистка конфигурации флагов (баннеры, карусели) и выдачи товаров (бустеры/рекламные товары)
-wb-cleaner = type=http-response,pattern=^https?:\/\/.*(apps-config\.wildberries\.ru\/config\/api\/v2\/(reactive|config)|catalog\.wb\.ru|napi\.wildberries\.ru|user-cards\.wb\.ru).*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_cleaner.js,timeout=15
+# Точечный перехват только конфига и баннеров (без тяжелых каталогов)
+wb-cleaner = type=http-response,pattern=^https?:\/\/.*(apps-config\.wildberries\.ru\/config\/api\/v2\/(reactive|config)|banners-bt\.wildberries\.ru\/api\/|chances\.wildberries\.ru).*$,requires-body=1,max-size=1048576,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_cleaner.js,timeout=10
 
 [MITM]
-hostname = %APPEND% apps-config.wildberries.ru, napi.wildberries.ru, catalog.wb.ru, user-cards.wb.ru
+hostname = %APPEND% apps-config.wildberries.ru, banners-bt.wildberries.ru, chances.wildberries.ru
