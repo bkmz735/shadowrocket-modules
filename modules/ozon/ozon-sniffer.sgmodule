@@ -1,11 +1,9 @@
-﻿#!name=Ozon Deep Inspector & Sniffer v2
-#!desc=Глубокий анализ API Ozon: разбор Composer-виджетов, дерева Layout, выявление рекламы, промо-блоков и трекеров (без нарушения заголовков клиента).
+﻿#!name=Ozon Chat & Deep Sniffer
+#!desc=Точечный сниффер для поиска эндпоинта списка чатов и сообщений Ozon.
 #!category=Sniffer
 
 [Script]
-# Перехват только основного composer API без ломки HTTP фингерпринта
-ozon-deep-sniffer = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_sniffer.js?v=20260904_02,timeout=30
+ozon-chat-sniffer = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_sniffer.js?v=chat1,timeout=20
 
 [MITM]
-# Точечный перехват только api.ozon.ru (где composer API)
 hostname = %APPEND% api.ozon.ru
