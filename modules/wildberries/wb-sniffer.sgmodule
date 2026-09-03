@@ -1,8 +1,9 @@
 ﻿#!name=Wildberries ORD & ERID Hunter
-#!desc=Сниффер рекламных баннеров WB по маркировке ОРД, ЕРИД, ИНН и advParams.
+#!desc=Сниффер рекламных баннеров WB по маркировке ОРД, ЕРИД, ИНН и advParams. Может использоваться отдельно от wb-noads.
 #!category=Sniffer
 
 [Rule]
+# Подавление шума телеметрии (чтобы сниффер не тонул в мусоре)
 DOMAIN,journal-bt.wildberries.ru,REJECT
 DOMAIN,a.wb.ru,REJECT
 DOMAIN,marketplace-sentry.wb.ru,REJECT
@@ -10,7 +11,7 @@ DOMAIN,xapi.wildberries.ru,REJECT
 DOMAIN,statistics-bt.wildberries.ru,REJECT
 
 [Script]
-wb-ord-hunter = type=http-response,pattern=^https?:\/\/.*(banners-bt|ui-bt|home-service|chances|api-ios|catalog)\.(wildberries|wb)\.ru\/.*$,requires-body=1,max-size=1048576,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_sniffer.js?v=ord_v1,timeout=15
+wb-ord-hunter = type=http-response,pattern=^https?:\/\/.*(banners-bt|ui-bt|home-service|chances|api-ios|catalog)\.(wildberries|wb)\.ru\/.*$,requires-body=1,max-size=1048576,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_sniffer.js?v=ord_v2,timeout=15
 
 [MITM]
 hostname = %APPEND% banners-bt.wildberries.ru, ui-bt.wildberries.ru, home-service.wildberries.ru, chances.wildberries.ru, api-ios.wildberries.ru, catalog.wb.ru
