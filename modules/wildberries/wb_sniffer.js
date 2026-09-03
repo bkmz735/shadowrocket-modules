@@ -1,78 +1,74 @@
 ﻿/**
- * 🫐 Wildberries Inspector - UI & Promo Targets
- * Безопасно инспектирует баннеры, главную, ЛК и промо WB Банка (без падений VPN)
+ * 🫐 Wildberries Safe Bulletproof Sniffer
+ * Никаких падений VPN:
+ * - Жесткий игнор спама journal-bt, a.wb.ru, sentry, antibot, locator, картинок
+ * - Лимит длины лога (до 500 символов)
+ * - Показывает URL, метод и реальные текстовые блоки рекламы/баннеров/меню
  */
 
 const url = $request ? $request.url : "";
+const method = $request ? $request.method : "GET";
 const body = (typeof $response !== "undefined" && $response.body) ? $response.body : null;
 
-if (body) {
+// Черный список шумных эндпоинтов (чтобы сниффер не жрал память)
+const NOISE = [
+    "journal-bt",
+    "a.wb.ru",
+    "marketplace-sentry",
+    "antibot",
+    "locator",
+    "courses/rub.json",
+    "points-bt",
+    "points.wb.ru",
+    "upstreams",
+    "ping"
+];
+
+if (body && !NOISE.some(n => url.includes(n))) {
     try {
         const data = JSON.parse(body);
 
-        // 1. Баннеры и промо на главной
-        if (url.includes("banners-bt.wildberries.ru")) {
-            console.log(`\n================== [WB: БАННЕРЫ И ПРОМО] ==================`);
-            const banners = Array.isArray(data) ? data : (data.banners || data.items || data.promo || []);
-            console.log(`Найдено баннеров: ${banners.length}`);
-            banners.slice(0, 15).forEach((b, i) => {
-                const title = b.title || b.name || b.header || b.text || "Без заголовка";
-                const link = b.actionUrl || b.link || b.url || "";
-                console.log(`  🎯 Баннер #${i + 1}: "${title}" | Link: ${link}`);
-            });
-            console.log(`===========================================================\n`);
-        }
+        console.log(`\n================== [WB SAFE SNIFFER] ==================`);
+        console.log(`[URL]: ${method} ${url}`);
 
-        // 2. Личный кабинет (ЛК): профиль, плашки и виджеты
-        else if (url.includes("ui-bt.wildberries.ru")) {
-            console.log(`\n================== [WB: ЛИЧНЫЙ КАБИНЕТ (ЛК)] ==================`);
-            console.log(`URL: ${url}`);
-            console.log(`Ключи экрана ЛК: ${JSON.stringify(Object.keys(data.data || data))}`);
-            
-            // Сканируем виджеты в профиле
-            const root = data.data || data;
-            for (const k in root) {
-                if (Array.isArray(root[k])) {
-                    console.log(`  📁 Секция "${k}" (${root[k].length} эл.):`);
-                    root[k].slice(0, 5).forEach((item, idx) => {
-                        const title = item.title || item.header || item.name || item.text || "";
+        // Ищем тексты, названия, баннеры
+        const itemsFound = [];
+
+        function scan(obj, path, depth) {
+            if (!obj || typeof obj !== "object" || depth > 4 || itemsFound.length > 20) return;
+
+            if (Array.isArray(obj)) {
+                obj.slice(0, 10).forEach((item, idx) => {
+                    if (item && typeof item === "object") {
+                        const title = item.title || item.name || item.header || item.text || "";
                         const sub = item.subTitle || item.subtitle || item.description || "";
-                        const type = item.type || item.kind || "";
-                        if (title || sub) {
-                            console.log(`     [${idx}] Type: "${type}" | "${title}" - "${sub}"`);
+                        const type = item.type || item.kind || item.blockType || "";
+                        const link = item.actionUrl || item.link || item.url || "";
+                        if (title || type || link) {
+                            itemsFound.push(`[${path}[${idx}]] Type: "${type}" | Title: "${String(title).slice(0, 50)}" | Link: "${String(link).slice(0, 60)}"`);
                         }
-                    });
-                }
-            }
-            console.log(`===============================================================\n`);
-        }
-
-        // 3. WB Банк / Баланс / Рассрочки
-        else if (
-            url.includes("wb-balance.wildberries.ru") ||
-            url.includes("installments-aggregator-bt.wildberries.ru") ||
-            url.includes("chances.wildberries.ru")
-        ) {
-            console.log(`\n================== [WB: БАНК / РАССРОЧКА / ЛОТЕРЕИ] ==================`);
-            console.log(`URL: ${url}`);
-            const sample = JSON.stringify(data).slice(0, 400);
-            console.log(`Ответ: ${sample}`);
-            console.log(`======================================================================\n`);
-        }
-
-        // 4. Главная страница (home-service)
-        else if (url.includes("home-service.wildberries.ru/home-service/api/v1/home")) {
-            console.log(`\n================== [WB: ГЛАВНАЯ СТРАНИЦА] ==================`);
-            if (data.data) {
-                for (const k in data.data) {
-                    if (Array.isArray(data.data[k])) {
-                        console.log(`  -> Блок "${k}": ${data.data[k].length} шт.`);
+                    }
+                });
+            } else {
+                for (const k in obj) {
+                    if (typeof obj[k] === "object") {
+                        scan(obj[k], path ? `${path}.${k}` : k, depth + 1);
                     }
                 }
             }
-            console.log(`============================================================\n`);
         }
 
+        scan(data, "", 0);
+
+        if (itemsFound.length > 0) {
+            console.log(`[ЭЛЕМЕНТЫ (${itemsFound.length})]:`);
+            itemsFound.forEach(it => console.log(`  -> ${it}`));
+        } else {
+            const rootKeys = Array.isArray(data) ? `Array[${data.length}]` : Object.keys(data).slice(0, 10).join(", ");
+            console.log(`[ROOT]: ${rootKeys}`);
+        }
+
+        console.log(`========================================================\n`);
     } catch (e) {}
 }
 

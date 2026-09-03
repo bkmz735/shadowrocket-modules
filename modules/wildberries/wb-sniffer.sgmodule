@@ -1,9 +1,16 @@
-﻿#!name=Wildberries Sniffer (UI, Profile & Bank)
-#!desc=Точечный сниффер баннеров, личного кабинета (ЛК), WB Банка и лотерей без перегрузки VPN.
+﻿#!name=Wildberries Bulletproof Sniffer
+#!desc=Безопасный сниффер Wildberries с аппаратной фильтрацией спама телеметрии (VPN гарантированно не вылетает).
 #!category=Sniffer
 
+[Rule]
+# Сбрасываем весь шквал логов до того, как они попадут в сниффер или скрипт
+DOMAIN,journal-bt.wildberries.ru,REJECT
+DOMAIN,a.wb.ru,REJECT
+DOMAIN,marketplace-sentry.wb.ru,REJECT
+DOMAIN,xapi.wildberries.ru,REJECT
+
 [Script]
-wb-ui-sniffer = type=http-response,pattern=^https?:\/\/.*(banners-bt\.wildberries\.ru|ui-bt\.wildberries\.ru\/ui-bt\/api\/v1\/profile|wb-balance\.wildberries\.ru|installments-aggregator-bt\.wildberries\.ru|chances\.wildberries\.ru|home-service\.wildberries\.ru\/home-service\/api\/v1\/home).*$,requires-body=1,max-size=1048576,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_sniffer.js,timeout=10
+wb-safe-sniffer = type=http-response,pattern=^https?:\/\/.*(wildberries|wb|wbbasket)\.ru\/.*$,requires-body=1,max-size=2097152,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_sniffer.js,timeout=10
 
 [MITM]
-hostname = %APPEND% banners-bt.wildberries.ru, ui-bt.wildberries.ru, wb-balance.wildberries.ru, installments-aggregator-bt.wildberries.ru, chances.wildberries.ru, home-service.wildberries.ru
+hostname = %APPEND% api-ios.wildberries.ru, home-service.wildberries.ru, ui-bt.wildberries.ru, banners-bt.wildberries.ru, chances.wildberries.ru, installments-aggregator-bt.wildberries.ru, wb-balance.wildberries.ru, user-features.wb.ru, splitter.wb.ru, apps-config.wildberries.ru
