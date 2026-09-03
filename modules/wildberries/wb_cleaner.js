@@ -1,6 +1,6 @@
 ﻿/**
- * Wildberries Cleaner v8 (Full Ad/ORD/Promo/Installment Cleaner)
- * 
+ * Wildberries Cleaner v9 (Full Ad/ORD/Promo/Installment Cleaner)
+ *
  * Обработчики (в порядке приоритета):
  *   1. banners-bt  — главная, корзина, ЛК, промо-страницы
  *   2. ui-bt       — профиль (виджеты, баннеры, рассрочки)
@@ -33,11 +33,11 @@
                 return;
             }
 
-            // Корзина (/api/v1/basket) — занулить баннеры, сохранить структуру
+            // Корзина (/api/v1/basket)
             if (url.includes("/basket")) {
                 const data = safeJSON(body);
                 if (data) {
-                    wipeKeys(data, ["banners", "items", "topBanners", "bottomBanners"]);
+                    nukeAllArrays(data);
                     $done({ body: JSON.stringify(data) });
                 } else {
                     $done({ body: JSON.stringify({ data: [], items: [], banners: [] }) });
@@ -45,38 +45,24 @@
                 return;
             }
 
-            // Главная (/api/v5/main)
+            // Главная (/api/v5/main) — зануляем ВСЕ массивы в data.data рекурсивно
             if (url.includes("/main")) {
                 const data = safeJSON(body);
                 if (data && data.data && typeof data.data === "object") {
-                    const wipe = [
-                        "smallTiles", "middleTiles", "bottomSlider",
-                        "thxForOrderSF", "brandsBanner", "popups",
-                        "small_sale", "saleLabels", "defaultBanner",
-                        "placeholderBanner", "topSliderNF", "topSlider",
-                        "stories", "bigBanners", "promoCards"
-                    ];
-                    for (var i = 0; i < wipe.length; i++) {
-                        if (wipe[i] in data.data) {
-                            data.data[wipe[i]] = Array.isArray(data.data[wipe[i]]) ? [] : null;
-                        }
-                    }
+                    nukeAllArrays(data.data);
                     $done({ body: JSON.stringify(data) });
                     return;
                 }
+                // Если структура не та — отдаём пустышку
+                $done({ body: JSON.stringify({ data: {} }) });
+                return;
             }
 
             // Промо-страницы (/api/v2/promopages/mobile)
             if (url.includes("/promopages")) {
                 const data = safeJSON(body);
                 if (data && Array.isArray(data.data)) {
-                    data.data = data.data.filter(function (b) {
-                        if (!b) return true;
-                        if (Array.isArray(b.brandsBanner)) return false;
-                        if (Array.isArray(b.saleLabels)) return false;
-                        if (b.ordBannerMark || b.advParams) return false;
-                        return true;
-                    });
+                    data.data = [];
                     $done({ body: JSON.stringify(data) });
                     return;
                 }
@@ -117,7 +103,6 @@
         if (url.includes("/card/cards/")) {
             const data = safeJSON(body);
             if (data) {
-                // Массив products
                 var products = (data.data && Array.isArray(data.data.products))
                     ? data.data.products
                     : Array.isArray(data.products) ? data.products : null;
@@ -126,9 +111,7 @@
                     for (var i = 0; i < products.length; i++) {
                         var p = products[i];
                         if (!p || typeof p !== "object") continue;
-                        // Вырезаем рекламные метки
                         stripAdFields(p);
-                        // Глубокая очистка вложенных рекламных блоков
                         var promoKeys = [
                             "promotions", "promoBanners", "adverts",
                             "advertBanners", "advertisements", "promoTextCard",
@@ -194,7 +177,6 @@
                     if (t.includes("advert") || t.includes("promo") || t.includes("banner")) return false;
                     return true;
                 });
-                // Также почистим items внутри каждого виджета
                 data.data.widgets.forEach(function (w) {
                     if (w && Array.isArray(w.items)) {
                         w.items = filterAdProducts(w.items);
@@ -235,7 +217,6 @@
         if (url.includes("apps-config.wildberries.ru")) {
             const data = safeJSON(body);
             if (data) {
-                // Отключаем известные промо-флаги
                 var promoFlags = [
                     "showPromo", "showBanners", "showStories",
                     "showLottery", "showInstallments", "showSpecials",
@@ -263,7 +244,7 @@
         $done({});
     }
 
-    // ─── Утилиты ─────────────────────────────────────────────────────────
+    // === Утилиты ===
 
     function safeJSON(str) {
         try { return JSON.parse(str); } catch (e) { return null; }
@@ -273,7 +254,22 @@
         return String(s || "").toLowerCase();
     }
 
-    /** Зануляет массивы/объекты по списку ключей */
+    /**
+     * Рекурсивно зануляет ВСЕ массивы внутри объекта.
+     * Ключевая функция для главной страницы — не зависит от имён ключей,
+     * убивает любые баннеры/тайлы/слайдеры, даже если WB добавит новые.
+     */
+    function nukeAllArrays(obj) {
+        if (!obj || typeof obj !== "object") return;
+        for (var k in obj) {
+            if (Array.isArray(obj[k])) {
+                obj[k] = [];
+            } else if (typeof obj[k] === "object" && obj[k] !== null) {
+                nukeAllArrays(obj[k]);
+            }
+        }
+    }
+
     function wipeKeys(obj, keys) {
         if (!obj || typeof obj !== "object") return;
         for (var i = 0; i < keys.length; i++) {
@@ -283,7 +279,6 @@
         }
     }
 
-    /** Удаляет рекламные поля из объекта товара */
     function stripAdFields(p) {
         if (p.isPromo) p.isPromo = false;
         if (p.isAdvert) p.isAdvert = false;
@@ -300,7 +295,6 @@
         }
     }
 
-    /** Фильтрует массив товаров/элементов от рекламных позиций */
     function filterAdProducts(list) {
         return list.filter(function (item) {
             if (!item || typeof item !== "object") return true;
@@ -315,7 +309,6 @@
         });
     }
 
-    /** Глубокая рекурсивная очистка рекламных элементов */
     function deepCleanAds(obj) {
         if (!obj || typeof obj !== "object") return;
         for (var k in obj) {
