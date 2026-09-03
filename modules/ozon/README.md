@@ -1,17 +1,18 @@
 ﻿# 🛍️ Ozon NoAds & Sniffer (Shadowrocket Module)
 
 Модуль для Shadowrocket (iOS), созданный на основе реального сниффинга сетевой структуры Ozon Composer Engine.
-Блокирует рекламные баннеры, видео-рекламу, промо-плашки акций и банковских продуктов, а также аналитические трекеры.
+Блокирует рекламные баннеры, видео-рекламу, модальные алерты, промо-плашки акций и банковских карт, а также аналитические трекеры.
 
 ---
 
-## ⚡ Быстрая установка
+## ⚡ Единая постоянная ссылка для установки
 
-1. Скопируйте ссылку на основной модуль:
-   `	ext
-   https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon-noads.sgmodule?v=2
-   `
-2. Откройте **Shadowrocket** -> вкладка **Config** -> **Modules (Модули)** -> нажмите **+** и вставьте URL.
+Скопируйте ссылку и добавьте в **Shadowrocket** -> **Modules (Модули)** -> **+**:
+`	ext
+https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon-noads.sgmodule
+`
+
+*(Для будущих обновлений достаточно просто нажимать **Update** в Shadowrocket)*
 
 ---
 
@@ -23,15 +24,15 @@
   - dvRefreshWithDelay — автоподгрузка новой рекламы в фоне.
 - **Личный кабинет / Профиль (/my)**:
   - entryBannerWidget — промо-плашки лотерей («Джекпот 15 млн» и др.).
-- **Раздел финансов (/finance/banklanding)**:
-  - dBanner — рекламные предложения кредитных продуктов.
-  - anner в модальных окнах (/modal/alert/).
+- **Раздел финансов / Ozon Банк (/finance/banklanding)**:
+  - Блокировка модалок order-card и setBannerAction (оформление карты / кредитки).
+  - Удаление промо-баннеров и плашек кредитных предложений.
 - **Разделители и разметка**:
-  - Синхронно удаляет пустые разделители (separator, islandSeparator), предотвращая появление дыр в дизайне.
+  - Удаляет пустые разделители (separator, islandSeparator), чтобы не оставалось дыр в интерфейсе.
 - **Аналитика и трекеры**:
   - p-api/tracker/ (телеметрия действий).
-  - p.ozon.ru/imp (пиксели учета показов).
-  - sentry.ozon.ru (краш-репорты).
+  - p.ozon.ru/imp (пиксели показов).
+  - sentry.ozon.ru (краш-трекер).
   - AppMetrica, Adjust, MyTarget, VK Analytics.
 
 ---

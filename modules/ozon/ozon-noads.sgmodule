@@ -1,4 +1,4 @@
-﻿#!name=Ozon NoAds & Clean Layout v3
+﻿#!name=Ozon NoAds & Clean Layout
 #!desc=Блокировка рекламы, видео-баннеров, модальных окон, промо-плашек (Ozon Банк, карты, джекпоты, акции) и трекеров в приложении Ozon.
 #!category=AdBlock
 
@@ -27,7 +27,7 @@ URL-REGEX,^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/v2\?url=
 
 [Script]
 # Хирургическая вырезка рекламных блоков и промо-виджетов из всех страниц и модалок Ozon
-ozon-cleaner = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js?v=20260904_03,timeout=15
+ozon-cleaner = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js,timeout=15
 
 [MITM]
 hostname = %APPEND% api.ozon.ru
