@@ -1,16 +1,17 @@
-﻿#!name=Wildberries Bulletproof Sniffer
-#!desc=Безопасный сниффер Wildberries с аппаратной фильтрацией спама телеметрии (VPN гарантированно не вылетает).
+﻿#!name=Wildberries Target Finder
+#!desc=Точечный перехватчик рекламы по ключевым словам ("Миксит", "Шейд", "Здесь все", "Реклама").
 #!category=Sniffer
 
 [Rule]
-# Сбрасываем весь шквал логов до того, как они попадут в сниффер или скрипт
+# Сброс шумной телеметрии (VPN не падает)
 DOMAIN,journal-bt.wildberries.ru,REJECT
 DOMAIN,a.wb.ru,REJECT
 DOMAIN,marketplace-sentry.wb.ru,REJECT
 DOMAIN,xapi.wildberries.ru,REJECT
+DOMAIN,statistics-bt.wildberries.ru,REJECT
 
 [Script]
-wb-safe-sniffer = type=http-response,pattern=^https?:\/\/.*(wildberries|wb|wbbasket)\.ru\/.*$,requires-body=1,max-size=2097152,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_sniffer.js,timeout=10
+wb-finder = type=http-response,pattern=^https?:\/\/.*(wildberries|wb|wbbasket)\.ru\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/wildberries/wb_sniffer.js?v=finder1,timeout=15
 
 [MITM]
-hostname = %APPEND% api-ios.wildberries.ru, home-service.wildberries.ru, ui-bt.wildberries.ru, banners-bt.wildberries.ru, chances.wildberries.ru, installments-aggregator-bt.wildberries.ru, wb-balance.wildberries.ru, user-features.wb.ru, splitter.wb.ru, apps-config.wildberries.ru
+hostname = %APPEND% *.wildberries.ru, *.wb.ru, ui-bt.wildberries.ru, banners-bt.wildberries.ru, api-ios.wildberries.ru, home-service.wildberries.ru, chances.wildberries.ru
