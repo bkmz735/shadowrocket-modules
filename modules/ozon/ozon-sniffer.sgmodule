@@ -1,0 +1,13 @@
+﻿#!name=Ozon Deep Inspector & Sniffer
+#!desc=Глубокий анализ API Ozon: разбор Composer-виджетов, дерева Layout, выявление рекламы, промо-блоков и трекеров.
+#!category=Sniffer
+
+[Header Rewrite]
+# Отключаем сжатие ответов (brotli/gzip), чтобы Shadowrocket отдавал чистый JSON скрипту
+^https?:\/\/.*\.ozon\.ru\/.* header-del Accept-Encoding
+
+[Script]
+ozon-deep-sniffer = type=http-response,pattern=^https?:\/\/(api|xapi|xapi-gate|api-mobile|st)\.ozon\.ru\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_sniffer.js,timeout=30
+
+[MITM]
+hostname = %APPEND% *.ozon.ru
