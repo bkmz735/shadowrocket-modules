@@ -24,6 +24,6 @@
 
 ## Установка:
 URL для добавления модуля в Shadowrocket:
-`	ext
+```text
 https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/location-spoofer/location-spoofer.sgmodule
-`
+```

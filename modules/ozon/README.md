@@ -8,9 +8,9 @@
 ## ⚡ Единая постоянная ссылка для установки
 
 Скопируйте ссылку и добавьте в **Shadowrocket** -> **Modules (Модули)** -> **+**:
-`	ext
+```text
 https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon-noads.sgmodule
-`
+```
 
 *(Для будущих обновлений достаточно просто нажимать **Update** в Shadowrocket)*
 
