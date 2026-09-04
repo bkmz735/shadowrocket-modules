@@ -1,70 +1,85 @@
-// carscanner.js – универсальный подменщик для Car Scanner
+﻿// carscanner_pro.js - Модификатор и логгер ответа Car Scanner
+// Логирует входящий ответ и модифицирует структуру для активации Pro
+
+const url = typeof $request !== 'undefined' ? $request.url : '';
 let body = $response.body;
-if (!body) { $done({}); return; }
 
-try {
-    let json = JSON.parse(body);
-    let modified = false;
+if (!body) {
+    console.log(`[CarScanner] Пустое тело ответа для URL: ${url}`);
+    $done({});
+} else {
+    console.log(`[CarScanner] Запрос: ${url}`);
+    console.log(`[CarScanner] Исходный ответ (сырой):\n${body}`);
 
-    // Рекурсивно обходим все ключи и значения
-    function walk(obj) {
-        for (let key in obj) {
-            if (!obj.hasOwnProperty(key)) continue;
-            let val = obj[key];
-            // Если значение – строка, ищем признаки "free/trial/inactive/expired"
-            if (typeof val === 'string') {
-                if (/free|trial|inactive|expired|none|demo/i.test(val)) {
-                    obj[key] = 'active';
-                    modified = true;
-                }
-                // Также проверяем ключи, содержащие "pro", "premium", "status"
-                if (/pro|premium|status|tier|plan/i.test(key)) {
-                    if (/free|trial|inactive|expired|none|demo/i.test(val)) {
+    try {
+        let json = JSON.parse(body);
+        console.log(`[CarScanner] Исходный JSON (распарсен):\n${JSON.stringify(json, null, 2)}`);
+
+        let modified = false;
+
+        // Рекурсивный обход и замена полей
+        function walk(obj) {
+            if (!obj || typeof obj !== 'object') return;
+
+            for (let key in obj) {
+                if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+                let val = obj[key];
+
+                // Строковые статусы
+                if (typeof val === 'string') {
+                    if (/^(free|trial|inactive|expired|none|demo|disabled|false|0)$/i.test(val.trim())) {
+                        obj[key] = 'active';
+                        modified = true;
+                    } else if (/status|tier|plan|type|level/i.test(key) && !/active|pro|premium/i.test(val)) {
                         obj[key] = 'active';
                         modified = true;
                     }
                 }
-            }
-            // Если значение – булево, и ключ похож на "pro" или "premium" – ставим true
-            if (typeof val === 'boolean') {
-                if (/pro|premium|ispro|ispromo|paid/i.test(key)) {
-                    if (!val) {
-                        obj[key] = true;
+                // Булевы флаги Pro/Premium
+                else if (typeof val === 'boolean') {
+                    if (/pro|premium|ispro|ispromo|paid|valid|subscribed|active/i.test(key)) {
+                        if (!val) {
+                            obj[key] = true;
+                            modified = true;
+                        }
+                    }
+                }
+                // Временные метки (продлеваем на 100 лет)
+                else if (typeof val === 'number') {
+                    if (/expires?|expiry|timestamp|valid_until|end_date/i.test(key)) {
+                        // Если в секундах или миллисекундах
+                        obj[key] = val > 1000000000000
+                            ? Date.now() + 100 * 365 * 24 * 60 * 60 * 1000
+                            : Math.floor((Date.now() + 100 * 365 * 24 * 60 * 60 * 1000) / 1000);
                         modified = true;
                     }
                 }
-            }
-            // Если значение – число, и ключ похож на "expires" или "expiry" – ставим далеко в будущее
-            if (typeof val === 'number') {
-                if (/expires?|expiry|timestamp/i.test(key)) {
-                    obj[key] = Date.now() + 100 * 365 * 24 * 60 * 60 * 1000;
-                    modified = true;
+                // Рекурсивный спуск
+                else if (typeof val === 'object') {
+                    walk(val);
                 }
             }
-            // Если значение – объект или массив, рекурсивно обходим
-            if (typeof val === 'object' && val !== null) {
-                walk(val);
-            }
         }
+
+        walk(json);
+
+        // Если не нашли подходящих полей - подставляем базовую структуру
+        if (!modified) {
+            json.status = 'active';
+            json.plan = 'pro';
+            json.isPro = true;
+            json.pro = true;
+            json.expires = '2099-12-31T23:59:59Z';
+            json.expiry = 4102444799;
+        }
+
+        const modifiedBody = JSON.stringify(json);
+        console.log(`[CarScanner] Модифицированный JSON:\n${JSON.stringify(json, null, 2)}`);
+
+        // Возвращаем только модифицированное тело, чтобы не конфликтовать с системными заголовками Shadowrocket
+        $done({ body: modifiedBody });
+    } catch (e) {
+        console.log(`[CarScanner] Ответ не является валидным JSON: ${e.message}`);
+        $done({});
     }
-
-    walk(json);
-
-    // Если ничего не нашли – добавляем стандартные поля
-    if (!modified) {
-        json.status = 'active';
-        json.plan = 'pro';
-        json.isPro = true;
-        json.expires = '2099-12-31T23:59:59Z';
-        modified = true;
-    }
-
-    $done({
-        status: 200,
-        headers: $response.headers,
-        body: JSON.stringify(json)
-    });
-} catch (e) {
-    // Если не JSON – пропускаем
-    $done({});
 }
