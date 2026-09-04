@@ -1,20 +1,37 @@
-﻿// carscanner_pro.js - Модификатор и логгер ответа Car Scanner
+﻿// carscanner_pro.js - Сниффер и модификатор Car Scanner
 (function () {
+    const isRequest = typeof $response === 'undefined';
     const url = typeof $request !== 'undefined' ? $request.url : '';
-    let body = typeof $response !== 'undefined' ? $response.body : null;
+    const method = typeof $request !== 'undefined' ? $request.method : 'UNKNOWN';
 
-    if (!body) {
-        console.log(`[CarScanner] Пустое тело ответа для URL: ${url}`);
+    // 1. Сниффер исходящего запроса
+    if (isRequest) {
+        const reqBody = typeof $request !== 'undefined' ? $request.body : '';
+        console.log(`[CarScanner][REQ] >>> ${method} ${url}`);
+        if (reqBody) {
+            console.log(`[CarScanner][REQ_BODY] ${reqBody}`);
+        }
         $done({});
         return;
     }
 
-    console.log(`[CarScanner] Перехвачен URL: ${url}`);
-    console.log(`[CarScanner] Исходный ответ (сырой):\n${body}`);
+    // 2. Сниффер и модификатор входящего ответа
+    let body = typeof $response !== 'undefined' ? $response.body : null;
+    const status = typeof $response !== 'undefined' ? $response.status : 200;
+
+    console.log(`[CarScanner][RES] <<< Status: ${status} for ${url}`);
+
+    if (!body) {
+        console.log(`[CarScanner][RES] Тело ответа пустое`);
+        $done({});
+        return;
+    }
+
+    console.log(`[CarScanner][RES_BODY_RAW] ${body}`);
 
     try {
         let json = JSON.parse(body);
-        console.log(`[CarScanner] Исходный JSON (распарсен):\n${JSON.stringify(json, null, 2)}`);
+        console.log(`[CarScanner][RES_JSON_PARSED]:\n${JSON.stringify(json, null, 2)}`);
 
         let modified = false;
 
@@ -65,11 +82,11 @@
         }
 
         const modifiedBody = JSON.stringify(json);
-        console.log(`[CarScanner] Модифицированный JSON:\n${JSON.stringify(json, null, 2)}`);
+        console.log(`[CarScanner][RES_MODIFIED]:\n${JSON.stringify(json, null, 2)}`);
 
         $done({ body: modifiedBody });
     } catch (e) {
-        console.log(`[CarScanner] Ответ не является валидным JSON: ${e.message}`);
+        console.log(`[CarScanner][RES] Не является JSON (или зашифровано/строка): ${e.message}`);
         $done({});
     }
 })();
