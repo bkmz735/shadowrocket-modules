@@ -3,7 +3,7 @@
 #!category=Mod
 
 [Script]
-CarScanner_Pro = type=http-response,pattern=^https?:\/\/carscanner\.cc\/apl,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/carscanner/carscanner.js
+CarScanner_Pro = type=http-response,pattern=^https?:\/\/carscanner\.cc\/apl,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/carscanner/carscanner_pro.js
 
 [Rule]
 # Можно добавить блокировку рекламы (она уже работает по другим правилам)
