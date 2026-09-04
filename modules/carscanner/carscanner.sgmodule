@@ -1,12 +1,13 @@
 #!name=Car Scanner Pro Emulator
-#!desc=Подмена статуса подписки на Pro для Car Scanner
+#!desc=Подмена статуса подписки на Pro для Car Scanner (адаптировано под carscanner.cc/apl)
 #!category=Mod
 
 [Script]
-CarScanner_Pro = type=http-response,pattern=^https?:\/\/[^\/]*carscanner\.(info|cc)\/.*,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/carscanner/carscanner_pro.js
+CarScanner_Pro = type=http-response,pattern=^https?:\/\/carscanner\.cc\/apl,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/carscanner/carscanner.js
 
 [Rule]
-# Сюда можно добавить правила для блокировки рекламы или телеметрии, если нужно
+# Можно добавить блокировку рекламы (она уже работает по другим правилам)
+# Если нужно – добавьте свои DOMAIN-SUFFIX,REJECT
 
 [MITM]
-hostname = %APPEND% carscanner.info, carscanner.cc, uc.r.appspot.com
+hostname = %APPEND% carscanner.cc

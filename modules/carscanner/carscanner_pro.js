@@ -1,34 +1,70 @@
+// carscanner.js – универсальный подменщик для Car Scanner
 let body = $response.body;
 if (!body) { $done({}); return; }
+
 try {
-  let json = JSON.parse(body);
-  let modified = false;
-  const statusKeys = ['status', 'subscription', 'plan', 'isPro', 'pro', 'premium', 'expires', 'expiry'];
-  for (let key of statusKeys) {
-    if (json.hasOwnProperty(key)) {
-      if (typeof json[key] === 'string' && /free|trial|inactive|expired|none/i.test(json[key])) {
-        json[key] = 'active';
-        modified = true;
-      }
-      if (typeof json[key] === 'boolean' && !json[key]) {
-        json[key] = true;
-        modified = true;
-      }
-      if (typeof json[key] === 'number') {
-        json[key] = Date.now() + 100 * 365 * 24 * 60 * 60 * 1000;
-        modified = true;
-      }
+    let json = JSON.parse(body);
+    let modified = false;
+
+    // Рекурсивно обходим все ключи и значения
+    function walk(obj) {
+        for (let key in obj) {
+            if (!obj.hasOwnProperty(key)) continue;
+            let val = obj[key];
+            // Если значение – строка, ищем признаки "free/trial/inactive/expired"
+            if (typeof val === 'string') {
+                if (/free|trial|inactive|expired|none|demo/i.test(val)) {
+                    obj[key] = 'active';
+                    modified = true;
+                }
+                // Также проверяем ключи, содержащие "pro", "premium", "status"
+                if (/pro|premium|status|tier|plan/i.test(key)) {
+                    if (/free|trial|inactive|expired|none|demo/i.test(val)) {
+                        obj[key] = 'active';
+                        modified = true;
+                    }
+                }
+            }
+            // Если значение – булево, и ключ похож на "pro" или "premium" – ставим true
+            if (typeof val === 'boolean') {
+                if (/pro|premium|ispro|ispromo|paid/i.test(key)) {
+                    if (!val) {
+                        obj[key] = true;
+                        modified = true;
+                    }
+                }
+            }
+            // Если значение – число, и ключ похож на "expires" или "expiry" – ставим далеко в будущее
+            if (typeof val === 'number') {
+                if (/expires?|expiry|timestamp/i.test(key)) {
+                    obj[key] = Date.now() + 100 * 365 * 24 * 60 * 60 * 1000;
+                    modified = true;
+                }
+            }
+            // Если значение – объект или массив, рекурсивно обходим
+            if (typeof val === 'object' && val !== null) {
+                walk(val);
+            }
+        }
     }
-  }
-  if (json.expires) { json.expires = '2099-12-31T23:59:59Z'; modified = true; }
-  if (json.expiry) { json.expiry = '2099-12-31T23:59:59Z'; modified = true; }
-  if (!modified) {
-    json.status = 'active';
-    json.plan = 'pro';
-    json.isPro = true;
-    json.expires = '2099-12-31T23:59:59Z';
-  }
-  $done({ status: 200, headers: $response.headers, body: JSON.stringify(json) });
+
+    walk(json);
+
+    // Если ничего не нашли – добавляем стандартные поля
+    if (!modified) {
+        json.status = 'active';
+        json.plan = 'pro';
+        json.isPro = true;
+        json.expires = '2099-12-31T23:59:59Z';
+        modified = true;
+    }
+
+    $done({
+        status: 200,
+        headers: $response.headers,
+        body: JSON.stringify(json)
+    });
 } catch (e) {
-  $done({});
+    // Если не JSON – пропускаем
+    $done({});
 }
