@@ -1,9 +1,9 @@
 ﻿#!name=Car Scanner Pro Emulator
-#!desc=Эмулятор подписки Pro для Car Scanner (перехват carscanner.cc)
+#!desc=Эмулятор подписки Pro для Car Scanner (перехват carscanner.cc и сопутствующих доменов)
 #!category=Mod
 
 [Script]
-CarScanner_Pro = type=http-response,pattern=^https?:\/\/carscanner\.cc,requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/carscanner/carscanner_pro.js
+CarScanner_Pro = type=http-response,pattern=^https?:\/\/(carscanner\.cc|.*\.carscanner\.(info|cc)|car-scanner-ff23b\.uc\.r\.appspot\.com),requires-body=1,max-size=524288,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/carscanner/carscanner_pro.js
 
 [MITM]
-hostname = %APPEND% carscanner.cc, *.carscanner.cc
+hostname = %APPEND% carscanner.cc, *.carscanner.cc, *.carscanner.info, car-scanner-ff23b.uc.r.appspot.com
