@@ -1,0 +1,12 @@
+﻿# Tests & Local Diagnostics
+test-notifications.js
+test.js
+test-*.js
+*.test.js
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
