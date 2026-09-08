@@ -63,7 +63,8 @@ function isAdWidgetPrefix(key) {
     if (!key) return false;
     const lower = key.toLowerCase();
     for (let i = 0; i < AD_WIDGET_PREFIXES.length; i++) {
-        if (lower.startsWith(AD_WIDGET_PREFIXES[i])) {
+        const prefix = AD_WIDGET_PREFIXES[i];
+        if (lower.startsWith(prefix) || lower.includes("." + prefix) || lower.includes(prefix)) {
             return true;
         }
     }
@@ -229,15 +230,28 @@ function cleanOzonPayload(rawBody) {
         // 2. Очистка widgetStates в /page/json/v2 (удаление рекламных виджетов + фильтрация товаров)
         if (data.widgetStates && typeof data.widgetStates === "object") {
             for (const key of Object.keys(data.widgetStates)) {
-                const widgetVal = data.widgetStates[key];
+                let widgetVal = data.widgetStates[key];
+                let isParsed = false;
+
+                // Ozon Composer Engine часто упаковывает состояние каждого виджета в JSON-строку!
+                if (typeof widgetVal === "string") {
+                    try {
+                        widgetVal = JSON.parse(widgetVal);
+                        isParsed = true;
+                    } catch (e) {}
+                }
 
                 if (shouldDeleteWidget(key, widgetVal)) {
                     delete data.widgetStates[key];
                     deletedWidgetKeys.add(key);
                     modified = true;
-                } else {
+                } else if (widgetVal && typeof widgetVal === "object") {
                     // Очищаем рекламные спонсорские карточки внутри tileGrid, searchResults, полок
                     if (filterItemsInWidgetState(widgetVal)) {
+                        // Если исходный виджет был строкой - сериализуем обратно
+                        if (isParsed) {
+                            data.widgetStates[key] = JSON.stringify(widgetVal);
+                        }
                         modified = true;
                     }
                 }
@@ -249,29 +263,43 @@ function cleanOzonPayload(rawBody) {
             const initialLen = data.layout.length;
 
             data.layout = data.layout.filter(item => {
-                const widgetKey = item.widgetKey || item.name || item.component || "";
-                const lowerKey = widgetKey.toLowerCase();
+                const widgetKey = item.widgetKey || "";
+                const stateId = item.stateId || "";
+                const component = item.component || "";
+                const name = item.name || "";
 
-                // Важные блоки оставляем обязательно
-                if (isWhitelistedWidget(widgetKey)) {
-                    return true;
+                // Проверяем все возможные идентификаторы элемента в layout
+                const identifiers = [widgetKey, stateId, component, name].filter(Boolean);
+
+                // Если хоть один идентификатор в белом списке - оставляем
+                for (let i = 0; i < identifiers.length; i++) {
+                    if (isWhitelistedWidget(identifiers[i])) {
+                        return true;
+                    }
                 }
 
-                if (
-                    deletedWidgetKeys.has(widgetKey) ||
-                    isAdWidgetPrefix(widgetKey) ||
-                    lowerKey.includes("rateitem") ||
-                    lowerKey.includes("tipping") ||
-                    lowerKey.includes("fintabbannerpriority") ||
-                    lowerKey.includes("advbanner") ||
-                    lowerKey.includes("advvideobannermobile") ||
-                    lowerKey.includes("entrybannerwidget") ||
-                    lowerKey.includes("advrefreshwithdelay") ||
-                    lowerKey.includes("regulardraw") ||
-                    lowerKey.includes("creditpromo")
-                ) {
-                    return false;
+                // Проверяем на удаление
+                for (let i = 0; i < identifiers.length; i++) {
+                    const id = identifiers[i];
+                    const lowerId = id.toLowerCase();
+
+                    if (
+                        deletedWidgetKeys.has(id) ||
+                        isAdWidgetPrefix(id) ||
+                        lowerId.includes("rateitem") ||
+                        lowerId.includes("tipping") ||
+                        lowerId.includes("fintabbannerpriority") ||
+                        lowerId.includes("advbanner") ||
+                        lowerId.includes("advvideobannermobile") ||
+                        lowerId.includes("entrybannerwidget") ||
+                        lowerId.includes("advrefreshwithdelay") ||
+                        lowerId.includes("regulardraw") ||
+                        lowerId.includes("creditpromo")
+                    ) {
+                        return false;
+                    }
                 }
+
                 return true;
             });
 
@@ -279,14 +307,15 @@ function cleanOzonPayload(rawBody) {
             const cleanedLayout = [];
             for (let i = 0; i < data.layout.length; i++) {
                 const cur = data.layout[i];
-                const curKey = (cur.widgetKey || cur.name || cur.component || "").toLowerCase();
-                const isSep = curKey.includes("separator");
+                const curId = (cur.widgetKey || cur.stateId || cur.component || cur.name || "").toLowerCase();
+                const isSep = curId.includes("separator");
 
                 if (isSep && cleanedLayout.length > 0) {
-                    const prevKey = (cleanedLayout[cleanedLayout.length - 1].widgetKey ||
-                                     cleanedLayout[cleanedLayout.length - 1].name ||
-                                     cleanedLayout[cleanedLayout.length - 1].component || "").toLowerCase();
-                    if (prevKey.includes("separator")) {
+                    const prevId = (cleanedLayout[cleanedLayout.length - 1].widgetKey ||
+                                     cleanedLayout[cleanedLayout.length - 1].stateId ||
+                                     cleanedLayout[cleanedLayout.length - 1].component ||
+                                     cleanedLayout[cleanedLayout.length - 1].name || "").toLowerCase();
+                    if (prevId.includes("separator")) {
                         continue;
                     }
                 }
