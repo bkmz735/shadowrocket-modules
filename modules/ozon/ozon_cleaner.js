@@ -17,7 +17,11 @@ const AD_WIDGET_PREFIXES = [
     "billboard",
     "advshelf",
     "advtile",
-    "brandshelf"
+    "brandshelf",
+    "regulardraw",              // regulardraw.entryBannerWidget («Джекпот 5 млн» и лотереи)
+    "skeeter.fintabbanner",     // skeeter.fintabBannerPriority (кредитные баннеры Ozon Банка)
+    "rtb.advvideobannermobile", // rtb видеобаннеры
+    "rtb.advrefreshwithdelay"   // rtb фоновые авторефреши рекламы
 ];
 
 // Ключевые слова виджетов, которые ОБЯЗАТЕЛЬНО должны оставаться
@@ -117,21 +121,39 @@ function shouldDeleteWidget(key, val) {
 
 // Определение, является ли элемент товара спонсорским / рекламой (Ozon Трафареты, Спонсорская полка)
 function isSponsoredProductItem(item) {
-    // Поддержка вложенного productItem (как в /widget/json/v2: { type: "CONTENT_TYPE_PRODUCT_ITEM", productItem: {...} })
-    const target = (item.productItem && typeof item.productItem === "object") ? item.productItem : item;
+    if (!item || typeof item !== "object") return false;
 
-    // Прямые булевы флаги рекламы (мгновенная проверка по свойствам)
+    // 1. Поддержка вложенных структур Composer:
+    // - tileGrid2: { type: "product", product: {...} }
+    // - widget/json: { type: "CONTENT_TYPE_PRODUCT_ITEM", productItem: {...} }
+    const target = (item.product && typeof item.product === "object") ? item.product :
+                   ((item.productItem && typeof item.productItem === "object") ? item.productItem : item);
+
+    // 2. Прямые булевы флаги рекламы
     if (target.isSponsored || target.sponsored || target.isAdv || target.adv || item.isSponsored || item.sponsored || item.isAdv) {
         return true;
     }
 
-    // Проверка типа элемента
+    // 3. Главный маркер трафаретов Ozon из сниффера: advertLite
+    const tracking = target.cellTrackingInfo || target.trackingInfo || item.cellTrackingInfo || item.trackingInfo;
+    if (tracking && typeof tracking === "object") {
+        if (tracking.isAdv || tracking.advertisement || tracking.cpm || tracking.advType) {
+            return true;
+        }
+        // Вложенные структуры trackingInfo.click.custom.advertLite
+        const clickCustom = tracking.click && tracking.click.custom;
+        if (clickCustom && typeof clickCustom === "object" && clickCustom.advertLite) {
+            return true;
+        }
+    }
+
+    // 4. Проверка типа элемента
     const itemType = (item.type || item.itemType || target.type || target.itemType || "").toLowerCase();
     if (itemType.includes("adv") || itemType.includes("banner") || itemType.includes("sponsored")) {
         return true;
     }
 
-    // Проверка маркеров рекламы в badges
+    // 5. Проверка маркеров рекламы в badges
     const badges = target.badges || item.badges;
     if (Array.isArray(badges)) {
         for (let i = 0; i < badges.length; i++) {
@@ -143,19 +165,11 @@ function isSponsoredProductItem(item) {
         }
     }
 
-    // Проверка наличия рекламных меток клика/трекинга
+    // 6. Проверка наличия рекламных меток клика/трекинга
     const action = (target.common && target.common.action) || target.action || item.action;
     if (action && typeof action === "object") {
         const link = action.link || action.url || "";
-        if (link.includes("adv_source") || link.includes("advertisement") || link.includes("cpm")) {
-            return true;
-        }
-    }
-
-    // Проверка cellTrackingInfo на принадлежность к трафаретам/CPM
-    const tracking = target.cellTrackingInfo || target.trackingInfo || item.cellTrackingInfo || item.trackingInfo;
-    if (tracking && typeof tracking === "object") {
-        if (tracking.isAdv || tracking.advertisement || tracking.cpm || tracking.advType) {
+        if (link.includes("adv_source") || link.includes("advertisement") || link.includes("cpm") || link.includes("advert=")) {
             return true;
         }
     }
@@ -237,7 +251,10 @@ function cleanOzonPayload(rawBody) {
                     lowerKey.includes("fintabbannerpriority") ||
                     lowerKey.includes("advbanner") ||
                     lowerKey.includes("advvideobannermobile") ||
-                    lowerKey.includes("entrybannerwidget")
+                    lowerKey.includes("entrybannerwidget") ||
+                    lowerKey.includes("advrefreshwithdelay") ||
+                    lowerKey.includes("regulardraw") ||
+                    lowerKey.includes("creditpromo")
                 ) {
                     return false;
                 }
