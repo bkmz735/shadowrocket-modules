@@ -333,24 +333,44 @@ function cleanOzonPayload(rawBody) {
                 return true;
             });
 
-            // Очистка идущих подряд лишних разделителей
-            const cleanedLayout = [];
+            // Очистка разделителей (separator, islandSeparator)
+            // 1. Убираем любые идущие подряд разделители любого типа
+            let cleanedLayout = [];
             for (let i = 0; i < data.layout.length; i++) {
                 const cur = data.layout[i];
-                const curId = (cur.widgetKey || cur.stateId || cur.component || cur.name || "").toLowerCase();
-                const isSep = curId.includes("separator");
+                const curComp = (cur.component || cur.name || cur.widgetKey || cur.stateId || "").toLowerCase();
+                const isSep = curComp.includes("separator");
 
                 if (isSep && cleanedLayout.length > 0) {
-                    const prevId = (cleanedLayout[cleanedLayout.length - 1].widgetKey ||
-                                     cleanedLayout[cleanedLayout.length - 1].stateId ||
-                                     cleanedLayout[cleanedLayout.length - 1].component ||
-                                     cleanedLayout[cleanedLayout.length - 1].name || "").toLowerCase();
-                    if (prevId.includes("separator")) {
-                        continue;
+                    const prev = cleanedLayout[cleanedLayout.length - 1];
+                    const prevComp = (prev.component || prev.name || prev.widgetKey || prev.stateId || "").toLowerCase();
+                    if (prevComp.includes("separator")) {
+                        continue; // Схлопываем подряд идущие разделители
                     }
                 }
                 cleanedLayout.push(cur);
             }
+
+            // 2. Убираем висящие разделители в самом начале или в самом конце массива
+            while (cleanedLayout.length > 0) {
+                const first = cleanedLayout[0];
+                const firstComp = (first.component || first.name || first.widgetKey || first.stateId || "").toLowerCase();
+                if (firstComp.includes("separator")) {
+                    cleanedLayout.shift();
+                } else {
+                    break;
+                }
+            }
+            while (cleanedLayout.length > 0) {
+                const last = cleanedLayout[cleanedLayout.length - 1];
+                const lastComp = (last.component || last.name || last.widgetKey || last.stateId || "").toLowerCase();
+                if (lastComp.includes("separator")) {
+                    cleanedLayout.pop();
+                } else {
+                    break;
+                }
+            }
+
             data.layout = cleanedLayout;
 
             if (data.layout.length !== initialLen) {
