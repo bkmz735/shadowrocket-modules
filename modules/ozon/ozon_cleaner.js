@@ -21,7 +21,10 @@ const AD_WIDGET_PREFIXES = [
     "regulardraw",              // regulardraw.entryBannerWidget («Джекпот 5 млн» и лотереи)
     "skeeter.fintabbanner",     // skeeter.fintabBannerPriority (кредитные баннеры Ozon Банка)
     "rtb.advvideobannermobile", // rtb видеобаннеры
-    "rtb.advrefreshwithdelay"   // rtb фоновые авторефреши рекламы
+    "rtb.advrefreshwithdelay",  // rtb фоновые авторефреши рекламы
+    "rateitems",                // «Поблагодарить продавца» (чаевые)
+    "rpproduct.rateitems",      // «Поблагодарить продавца» в layout на главной
+    "tipping"                   // чаевые продавцам
 ];
 
 // Ключевые слова виджетов, которые ОБЯЗАТЕЛЬНО должны оставаться
@@ -35,16 +38,20 @@ function isWhitelistedWidget(key) {
         return true;
     }
 
-    // 2. Блоки заказов, доставки и оценки полученных товаров
+    // 2. Блоки заказов и доставки
+    // ВАЖНО: 'rate' и 'tipping' убраны из белого списка, чтобы не пропускать «Поблагодарить продавца»!
     if (
         lower.includes("order") ||         // userOrders, orderBanner, activeOrders, etc.
         lower.includes("delivery") ||      // статус доставки
         lower.includes("tracking") ||      // трекинг посылки
         lower.includes("purchase") ||      // покупки
         lower.includes("feedback") ||      // отзывы
-        lower.includes("rating") ||        // рейтинг / оценка
-        lower.includes("review")           // оставить отзыв
+        lower.includes("review")           // оставить отзыв к заказу
     ) {
+        // Если это rateItems / tipping внутри заказа - не защищаем
+        if (lower.includes("rateitem") || lower.includes("tipping")) {
+            return false;
+        }
         return true;
     }
 
@@ -63,16 +70,21 @@ function isAdWidgetPrefix(key) {
     return false;
 }
 
-// Быстрая проверка на чаевые («поблагодарить продавца») без тотального JSON.stringify
+// Быстрая проверка на чаевые («поблагодарить продавца» / rateItems)
 function isTippingWidget(key, val) {
     const lowerKey = key.toLowerCase();
-    if (lowerKey.includes("tipping")) {
+    if (
+        lowerKey.includes("rateitem") ||
+        lowerKey.includes("tipping") ||
+        lowerKey.includes("tips") ||
+        lowerKey.startsWith("rpproduct.rateitems")
+    ) {
         return true;
     }
 
     if (val && typeof val === "object") {
-        const textToCheck = (val.title || "") + " " + (val.header || "") + " " + (val.text || "");
-        if (/поблагодарить|чаевые|tips/i.test(textToCheck)) {
+        const textToCheck = (val.title || "") + " " + (val.header || "") + " " + (val.text || "") + " " + (val.actionText || "");
+        if (/поблагодарить|чаевые|tips|благодарност/i.test(textToCheck)) {
             return true;
         }
     }
@@ -248,6 +260,8 @@ function cleanOzonPayload(rawBody) {
                 if (
                     deletedWidgetKeys.has(widgetKey) ||
                     isAdWidgetPrefix(widgetKey) ||
+                    lowerKey.includes("rateitem") ||
+                    lowerKey.includes("tipping") ||
                     lowerKey.includes("fintabbannerpriority") ||
                     lowerKey.includes("advbanner") ||
                     lowerKey.includes("advvideobannermobile") ||
