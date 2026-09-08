@@ -160,9 +160,16 @@ function isSponsoredProductItem(item) {
         }
     }
 
-    // 4. Проверка типа элемента
-    const itemType = (item.type || item.itemType || target.type || target.itemType || "").toLowerCase();
-    if (itemType.includes("adv") || itemType.includes("banner") || itemType.includes("sponsored")) {
+    // 4. Проверка типа элемента (только явные рекламные типы, исключая обычный product)
+    const rawType = item.type || item.itemType || target.type || target.itemType || "";
+    const lowerType = rawType.toLowerCase();
+    if (
+        lowerType.startsWith("adv") ||
+        lowerType.startsWith("ad") ||
+        lowerType.includes("sponsored") ||
+        lowerType === "banner" ||
+        lowerType.startsWith("banner")
+    ) {
         return true;
     }
 
@@ -211,6 +218,24 @@ function filterItemsInWidgetState(state) {
     return modified;
 }
 
+// Проверка, опустел ли виджет полностью после вырезки рекламных карточек
+function isWidgetCompletelyEmpty(state) {
+    if (!state || typeof state !== "object") return false;
+    const candidateArrays = ["items", "products", "tiles", "catalog", "elements"];
+    let foundArray = false;
+    for (let a = 0; a < candidateArrays.length; a++) {
+        const arr = state[candidateArrays[a]];
+        if (Array.isArray(arr)) {
+            foundArray = true;
+            if (arr.length > 0) {
+                return false; // Есть полезные товары!
+            }
+        }
+    }
+    // Если в виджете были массивы товаров, но теперь они все пустые (length === 0)
+    return foundArray;
+}
+
 function cleanOzonPayload(rawBody) {
     if (!rawBody) return rawBody;
 
@@ -248,8 +273,13 @@ function cleanOzonPayload(rawBody) {
                 } else if (widgetVal && typeof widgetVal === "object") {
                     // Очищаем рекламные спонсорские карточки внутри tileGrid, searchResults, полок
                     if (filterItemsInWidgetState(widgetVal)) {
-                        // Если исходный виджет был строкой - сериализуем обратно
-                        if (isParsed) {
+                        // Если в результате фильтрации виджет/полка опустели полностью - удаляем его совсем!
+                        // Чтобы в приложении не оставалось пустых "дыр" и серых блоков
+                        if (isWidgetCompletelyEmpty(widgetVal)) {
+                            delete data.widgetStates[key];
+                            deletedWidgetKeys.add(key);
+                        } else if (isParsed) {
+                            // Если остались полезные органические товары - сериализуем обратно
                             data.widgetStates[key] = JSON.stringify(widgetVal);
                         }
                         modified = true;
