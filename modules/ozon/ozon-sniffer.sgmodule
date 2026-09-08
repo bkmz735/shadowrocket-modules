@@ -3,7 +3,7 @@
 #!category=Sniffer
 
 [Script]
-ozon-promo-sniffer = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_sniffer.js?v=promo2,timeout=20
+ozon-promo-sniffer = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_sniffer.js?v=inspector1,timeout=20
 
 [MITM]
 hostname = %APPEND% api.ozon.ru
