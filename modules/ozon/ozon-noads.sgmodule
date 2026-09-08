@@ -1,4 +1,4 @@
-﻿#!name=Ozon NoAds & Clean Layout
+#!name=Ozon NoAds & Clean Layout
 #!desc=Блокировка рекламы, видео-баннеров, модалок, промо Ozon Банка (карты/кредиты), спам-уведомлений и трекеров.
 #!category=AdBlock
 
@@ -20,9 +20,10 @@ DOMAIN-SUFFIX,serving-sys.ru,REJECT
 DOMAIN-SUFFIX,litix.io,REJECT
 
 # Внутренние трекеры кликов/показов Ozon и аналитика Ozon Банка
-DOMAIN,p.ozon.ru,REJECT
-DOMAIN,sentry.ozon.ru,REJECT
-DOMAIN,io-bank.ozone.ru,REJECT
+DOMAIN-SUFFIX,p.ozon.ru,REJECT
+DOMAIN-SUFFIX,sentry.ozon.ru,REJECT
+DOMAIN-SUFFIX,io-bank.ozon.ru,REJECT
+DOMAIN-SUFFIX,io-bank.ozone.ru,REJECT
 URL-REGEX,^https?:\/\/api\.ozon\.ru\/p-api\/tracker\/,REJECT
 URL-REGEX,^https?:\/\/api\.ozon\.ru\/p-api\/perf-metrics-collector\/,REJECT
 
@@ -32,8 +33,8 @@ URL-REGEX,^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/_action\/inAppPushAc
 URL-REGEX,^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/v2\?url=\/modal\/alert\/,REJECT
 
 [Script]
-# Вырезка рекламы, баннеров и спам-каналов в чатах/сообщениях
-ozon-cleaner = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/.*(page\/json|messenger|chat|communication).*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js,timeout=15
+# Вырезка рекламы, баннеров, кредитов и спонсорских товаров (page/json и widget/json)
+ozon-cleaner = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/.*(page|widget)\/json.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js?v=2.1,timeout=15
 
 [MITM]
 hostname = %APPEND% api.ozon.ru

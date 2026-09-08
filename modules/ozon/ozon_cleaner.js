@@ -1,72 +1,187 @@
-﻿/**
+/**
  * 🛡️ Ozon AdBlock & Deep Cleaner
- * Вырезание рекламы, баннеров, чаевых, Ozon Банк кредитов и рекламных пушей/чатов
+ * Вырезание рекламы, баннеров, кредитов Ozon Банка, чаевых и спонсорских товаров (Трафареты)
+ * с сохранением баланса Ozon Карты, истории заказов и блоков отзывов/оценки товаров.
  */
 
-const url = $request ? $request.url : "";
-
-// Префиксы заведомо рекламных виджетов Ozon
+// Список префиксов виджетов, являющихся чистой рекламой
 const AD_WIDGET_PREFIXES = [
     "advbanner",
     "adbanner",
-    "banner",
+    "promobanner",
+    "dvbanner",
     "advvideobannermobile",
     "entrybannerwidget",
     "advrefreshwithdelay",
-    "promobanner",
     "adcarousel",
-    "rateitems" // «Поблагодарить продавца»
+    "billboard",
+    "advshelf",
+    "advtile",
+    "brandshelf"
 ];
 
+// Ключевые слова виджетов, которые ОБЯЗАТЕЛЬНО должны оставаться
+// (Заказы, статус доставки, оценка купленных товаров, отзывы, финансы/баланс)
+function isWhitelistedWidget(key) {
+    if (!key) return false;
+    const lower = key.toLowerCase();
+
+    // 1. Финансы и баланс Ozon Карты
+    if (lower.startsWith("financewidget") || lower.startsWith("financeheaderwidget")) {
+        return true;
+    }
+
+    // 2. Блоки заказов, доставки и оценки полученных товаров
+    if (
+        lower.includes("order") ||         // userOrders, orderBanner, activeOrders, etc.
+        lower.includes("delivery") ||      // статус доставки
+        lower.includes("tracking") ||      // трекинг посылки
+        lower.includes("purchase") ||      // покупки
+        lower.includes("feedback") ||      // отзывы
+        lower.includes("rating") ||        // рейтинг / оценка
+        lower.includes("review")           // оставить отзыв
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+// Проверка, является ли ключ виджета рекламным
 function isAdWidgetPrefix(key) {
     if (!key) return false;
     const lower = key.toLowerCase();
-    for (const prefix of AD_WIDGET_PREFIXES) {
-        if (lower.startsWith(prefix)) {
+    for (let i = 0; i < AD_WIDGET_PREFIXES.length; i++) {
+        if (lower.startsWith(AD_WIDGET_PREFIXES[i])) {
             return true;
         }
     }
     return false;
 }
 
-function shouldDeleteWidget(key, val) {
+// Быстрая проверка на чаевые («поблагодарить продавца») без тотального JSON.stringify
+function isTippingWidget(key, val) {
     const lowerKey = key.toLowerCase();
+    if (lowerKey.includes("tipping")) {
+        return true;
+    }
 
-    // 1. Баланс Ozon Карты НЕ ТРОГАЕМ!
-    if (lowerKey.startsWith("financewidget") || lowerKey.startsWith("financeheaderwidget")) {
+    if (val && typeof val === "object") {
+        const textToCheck = (val.title || "") + " " + (val.header || "") + " " + (val.text || "");
+        if (/поблагодарить|чаевые|tips/i.test(textToCheck)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Проверка виджетов Ozon Банка на кредитные предложения
+function isBankCreditWidget(key, val) {
+    const lowerKey = key.toLowerCase();
+    if (lowerKey.includes("adbanner") || lowerKey.includes("fintabbannerpriority")) {
+        return true;
+    }
+    if (val && typeof val === "object") {
+        const str = (val.title || "") + " " + (val.subtitle || "") + " " + (val.text || "");
+        if (str.includes("500 000") || /кредит|продлить лето|рассрочк/i.test(str)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Определение, нужно ли удалить весь виджет
+function shouldDeleteWidget(key, val) {
+    // 1. Белый список приоритетнее всего
+    if (isWhitelistedWidget(key)) {
         return false;
     }
 
-    // 2. Прямой матчинг по префиксам
+    // 2. Прямой матчинг по префиксам рекламы
     if (isAdWidgetPrefix(key)) {
         return true;
     }
 
-    const str = typeof val === "string" ? val : JSON.stringify(val);
-
-    // 3. «Поблагодарить продавца» / Чаевые
-    if (
-        lowerKey.includes("rateitem") ||
-        lowerKey.includes("tipping") ||
-        str.includes("поблагодарить") ||
-        str.includes("Поблагодарить") ||
-        str.includes("чаевые") ||
-        str.includes("Чаевые") ||
-        str.includes("tips")
-    ) {
+    // 3. Чаевые («поблагодарить продавца»)
+    if (isTippingWidget(key, val)) {
         return true;
     }
 
-    // 4. Баннер кредита в Ozon Банке (banklanding)
-    if (
-        lowerKey.includes("adbanner") ||
-        str.includes("До 500 000") ||
-        str.includes("чтобы продлить лето")
-    ) {
+    // 4. Баннеры кредитов Ozon Банка
+    if (isBankCreditWidget(key, val)) {
         return true;
     }
 
     return false;
+}
+
+// Определение, является ли элемент товара спонсорским / рекламой (Ozon Трафареты, Спонсорская полка)
+function isSponsoredProductItem(item) {
+    // Поддержка вложенного productItem (как в /widget/json/v2: { type: "CONTENT_TYPE_PRODUCT_ITEM", productItem: {...} })
+    const target = (item.productItem && typeof item.productItem === "object") ? item.productItem : item;
+
+    // Прямые булевы флаги рекламы (мгновенная проверка по свойствам)
+    if (target.isSponsored || target.sponsored || target.isAdv || target.adv || item.isSponsored || item.sponsored || item.isAdv) {
+        return true;
+    }
+
+    // Проверка типа элемента
+    const itemType = (item.type || item.itemType || target.type || target.itemType || "").toLowerCase();
+    if (itemType.includes("adv") || itemType.includes("banner") || itemType.includes("sponsored")) {
+        return true;
+    }
+
+    // Проверка маркеров рекламы в badges
+    const badges = target.badges || item.badges;
+    if (Array.isArray(badges)) {
+        for (let i = 0; i < badges.length; i++) {
+            const b = badges[i];
+            const text = (typeof b === "string" ? b : (b.text || b.title || "")).toLowerCase();
+            if (text.includes("реклама") || text.includes("спонсор")) {
+                return true;
+            }
+        }
+    }
+
+    // Проверка наличия рекламных меток клика/трекинга
+    const action = (target.common && target.common.action) || target.action || item.action;
+    if (action && typeof action === "object") {
+        const link = action.link || action.url || "";
+        if (link.includes("adv_source") || link.includes("advertisement") || link.includes("cpm")) {
+            return true;
+        }
+    }
+
+    // Проверка cellTrackingInfo на принадлежность к трафаретам/CPM
+    const tracking = target.cellTrackingInfo || target.trackingInfo || item.cellTrackingInfo || item.trackingInfo;
+    if (tracking && typeof tracking === "object") {
+        if (tracking.isAdv || tracking.advertisement || tracking.cpm || tracking.advType) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Фильтрация рекламных товаров внутри поисковой выдачи, каталогов и полок
+function filterItemsInWidgetState(state) {
+    if (!state || typeof state !== "object") return false;
+    let modified = false;
+
+    // Массивы с товарами в Composer: items, products, tiles, searchResults, shelf
+    const candidateArrays = ["items", "products", "tiles", "catalog", "elements"];
+    for (let a = 0; a < candidateArrays.length; a++) {
+        const arrName = candidateArrays[a];
+        if (Array.isArray(state[arrName])) {
+            const origLen = state[arrName].length;
+            state[arrName] = state[arrName].filter(item => !isSponsoredProductItem(item));
+            if (state[arrName].length !== origLen) {
+                modified = true;
+            }
+        }
+    }
+
+    return modified;
 }
 
 function cleanOzonPayload(rawBody) {
@@ -78,37 +193,51 @@ function cleanOzonPayload(rawBody) {
 
         const deletedWidgetKeys = new Set();
 
-        // 1. Очистка widgetStates
+        // 1. Очистка структуры эндпоинта /widget/json/v2 (где нет widgetStates, а сразу { state: { items: [...] } })
+        if (data.state && typeof data.state === "object") {
+            if (filterItemsInWidgetState(data.state)) {
+                modified = true;
+            }
+        }
+
+        // 2. Очистка widgetStates в /page/json/v2 (удаление рекламных виджетов + фильтрация товаров)
         if (data.widgetStates && typeof data.widgetStates === "object") {
             for (const key of Object.keys(data.widgetStates)) {
-                if (shouldDeleteWidget(key, data.widgetStates[key])) {
+                const widgetVal = data.widgetStates[key];
+
+                if (shouldDeleteWidget(key, widgetVal)) {
                     delete data.widgetStates[key];
                     deletedWidgetKeys.add(key);
                     modified = true;
+                } else {
+                    // Очищаем рекламные спонсорские карточки внутри tileGrid, searchResults, полок
+                    if (filterItemsInWidgetState(widgetVal)) {
+                        modified = true;
+                    }
                 }
             }
         }
 
-        // 2. Очистка дерева layout
+        // 3. Очистка дерева layout
         if (Array.isArray(data.layout)) {
             const initialLen = data.layout.length;
-            
+
             data.layout = data.layout.filter(item => {
                 const widgetKey = item.widgetKey || item.name || item.component || "";
                 const lowerKey = widgetKey.toLowerCase();
 
-                if (lowerKey.includes("financewidget") || lowerKey.includes("financeheaderwidget")) {
+                // Важные блоки оставляем обязательно
+                if (isWhitelistedWidget(widgetKey)) {
                     return true;
                 }
 
                 if (
+                    deletedWidgetKeys.has(widgetKey) ||
+                    isAdWidgetPrefix(widgetKey) ||
                     lowerKey.includes("fintabbannerpriority") ||
                     lowerKey.includes("advbanner") ||
                     lowerKey.includes("advvideobannermobile") ||
-                    lowerKey.includes("entrybannerwidget") ||
-                    lowerKey.includes("rateitems") ||
-                    deletedWidgetKeys.has(widgetKey) ||
-                    isAdWidgetPrefix(widgetKey)
+                    lowerKey.includes("entrybannerwidget")
                 ) {
                     return false;
                 }
@@ -123,8 +252,8 @@ function cleanOzonPayload(rawBody) {
                 const isSep = curKey.includes("separator");
 
                 if (isSep && cleanedLayout.length > 0) {
-                    const prevKey = (cleanedLayout[cleanedLayout.length - 1].widgetKey || 
-                                     cleanedLayout[cleanedLayout.length - 1].name || 
+                    const prevKey = (cleanedLayout[cleanedLayout.length - 1].widgetKey ||
+                                     cleanedLayout[cleanedLayout.length - 1].name ||
                                      cleanedLayout[cleanedLayout.length - 1].component || "").toLowerCase();
                     if (prevKey.includes("separator")) {
                         continue;
@@ -139,7 +268,7 @@ function cleanOzonPayload(rawBody) {
             }
         }
 
-        // 3. Зачистка встроенной аналитики
+        // 4. Зачистка встроенной аналитики
         if (data.trackingPayloads) {
             delete data.trackingPayloads;
             modified = true;
@@ -152,9 +281,18 @@ function cleanOzonPayload(rawBody) {
     }
 }
 
+// Запуск в среде Shadowrocket
 if (typeof $response !== "undefined" && $response.body) {
     const cleaned = cleanOzonPayload($response.body);
     $done({ body: cleaned });
+} else if (typeof module !== "undefined" && module.exports) {
+    // Экспорт для unit-тестирования
+    module.exports = {
+        cleanOzonPayload,
+        shouldDeleteWidget,
+        isSponsoredProductItem,
+        isWhitelistedWidget
+    };
 } else {
     $done({});
 }

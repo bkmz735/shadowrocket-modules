@@ -1,9 +1,9 @@
-﻿#!name=Ozon Chat & Deep Sniffer
-#!desc=Точечный сниффер для поиска эндпоинта списка чатов и сообщений Ozon.
+#!name=Ozon Promo & Coupon Sniffer
+#!desc=Автоматический поиск и логирование ключей промо-баннеров, купонов, розыгрышей и акций Ozon.
 #!category=Sniffer
 
 [Script]
-ozon-chat-sniffer = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_sniffer.js?v=chat1,timeout=20
+ozon-promo-sniffer = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_sniffer.js?v=promo2,timeout=20
 
 [MITM]
 hostname = %APPEND% api.ozon.ru
