@@ -1,7 +1,11 @@
 /**
- * 🛡️ Ozon AdBlock & Clean Layout
- * Блокировка рекламных баннеров, видео-рекламы, лотерей, кредитных промо Ozon Банка и чаевых.
- * Сохраняет полную целостность сетки товаров (tileGrid2), баланс Ozon Карты и историю заказов.
+ * 🛡️ Ozon AdBlock & Smart Cleaner v5.0
+ * 1. Блокирует рекламные баннеры, видео-рекламу, модалки, лотереи, промо кредитов и чаевые в layout.
+ * 2. ОБЕЗВРЕЖИВАЕТ спонсорские товары (Ozon Трафареты):
+ *    - Вычищает токены advertLite из click/view tracking
+ *    - Удаляет рекламные метки из ссылок клика (advert=)
+ *    - Удаляет визуальные плашки «Реклама» и «Спонсорский»
+ *    - Сохраняет 100% стабильность сетки товаров (без нечетных плиток, без пустых дыр и провалов).
  */
 
 // Список ключевых идентификаторов виджетов, являющихся чистой рекламой
@@ -34,7 +38,7 @@ function isWhitelistedWidget(key) {
     if (!key) return false;
     const lower = key.toLowerCase();
 
-    // 1. Товарная сетка, каталоги и бесконечный скролл — НИ В КОЕМ СЛУЧАЕ НЕ ТРОГАЕМ!
+    // 1. Товарная сетка, каталоги и бесконечный скролл — НИ В КОЕМ СЛУЧАЕ НЕ УДАЛЯТЬ ИЗ LAYOUT!
     if (
         lower.includes("tilegrid") ||
         lower.includes("infinitescroll") ||
@@ -150,6 +154,89 @@ function shouldDeleteWidget(key, val) {
     return false;
 }
 
+// Умное обезвреживание рекламы внутри карточки товара
+// Сохраняет целостность сетки 2х2, но вычищает все рекламные метки Ozon Трафаретов и трекинг кликов/показов
+function neutralizeAdTile(tile) {
+    if (!tile || typeof tile !== "object") return false;
+    let modified = false;
+
+    const target = (tile.product && typeof tile.product === "object") ? tile.product :
+                   ((tile.productItem && typeof tile.productItem === "object") ? tile.productItem : tile);
+
+    // 1. Очистка токенов Ozon Трафаретов (advertLite) и рекламных флагов в трекинге
+    const tracking = target.cellTrackingInfo || target.trackingInfo || tile.cellTrackingInfo || tile.trackingInfo;
+    if (tracking && typeof tracking === "object") {
+        if (tracking.advertisement) { delete tracking.advertisement; modified = true; }
+        if (tracking.isAdv) { delete tracking.isAdv; modified = true; }
+        if (tracking.cpm) { delete tracking.cpm; modified = true; }
+        if (tracking.advType) { delete tracking.advType; modified = true; }
+        if (tracking.click && tracking.click.custom && tracking.click.custom.advertLite) {
+            delete tracking.click.custom.advertLite;
+            modified = true;
+        }
+        if (tracking.view && tracking.view.custom && tracking.view.custom.advertLite) {
+            delete tracking.view.custom.advertLite;
+            modified = true;
+        }
+    }
+
+    // 2. Прямые флаги рекламы
+    if (target.isSponsored) { delete target.isSponsored; modified = true; }
+    if (target.sponsored) { delete target.sponsored; modified = true; }
+    if (target.isAdv) { delete target.isAdv; modified = true; }
+    if (target.adv) { delete target.adv; modified = true; }
+    if (tile.isSponsored) { delete tile.isSponsored; modified = true; }
+    if (tile.isAdv) { delete tile.isAdv; modified = true; }
+
+    // 3. Очистка плашек «Реклама» и «Спонсорский» из badges
+    const badges = target.badges || tile.badges;
+    if (Array.isArray(badges)) {
+        const origLen = badges.length;
+        const filteredBadges = badges.filter(b => {
+            const text = (typeof b === "string" ? b : (b.text || b.title || "")).toLowerCase();
+            return !text.includes("реклама") && !text.includes("спонсор");
+        });
+        if (filteredBadges.length !== origLen) {
+            if (target.badges) target.badges = filteredBadges;
+            if (tile.badges) tile.badges = filteredBadges;
+            modified = true;
+        }
+    }
+
+    // 4. Очистка рекламных параметров из ссылок клика (advert=)
+    const action = (target.common && target.common.action) || target.action || tile.action;
+    if (action && typeof action === "object" && typeof action.link === "string") {
+        if (action.link.indexOf("advert=") !== -1) {
+            action.link = action.link.replace(/([?&])advert=[^&]*(&|$)/g, function(match, p1, p2) {
+                return p2 === "&" ? p1 : "";
+            }).replace(/\?$/, "");
+            modified = true;
+        }
+    }
+
+    return modified;
+}
+
+// Обезвреживание рекламных товаров в массивах виджета (tiles, products, searchResults)
+function sanitizeTilesInWidget(val) {
+    if (!val || typeof val !== "object") return false;
+    let modified = false;
+
+    const tileArrays = ["tiles", "products", "searchResults"];
+    for (let a = 0; a < tileArrays.length; a++) {
+        const arr = val[tileArrays[a]];
+        if (Array.isArray(arr)) {
+            for (let i = 0; i < arr.length; i++) {
+                if (neutralizeAdTile(arr[i])) {
+                    modified = true;
+                }
+            }
+        }
+    }
+
+    return modified;
+}
+
 function cleanOzonPayload(rawBody) {
     if (!rawBody) return rawBody;
 
@@ -159,15 +246,16 @@ function cleanOzonPayload(rawBody) {
 
         const deletedWidgetKeys = new Set();
 
-        // 1. Очистка рекламных виджетов в widgetStates (/page/json/v2)
+        // 1. Очистка рекламных виджетов и обезвреживание Трафаретов в widgetStates (/page/json/v2)
         if (data.widgetStates && typeof data.widgetStates === "object") {
             for (const key of Object.keys(data.widgetStates)) {
                 let widgetVal = data.widgetStates[key];
+                let isParsed = false;
 
-                // Распаковываем JSON-строку только для проверки содержимого
                 if (typeof widgetVal === "string") {
                     try {
                         widgetVal = JSON.parse(widgetVal);
+                        isParsed = true;
                     } catch (e) {}
                 }
 
@@ -175,11 +263,26 @@ function cleanOzonPayload(rawBody) {
                     delete data.widgetStates[key];
                     deletedWidgetKeys.add(key);
                     modified = true;
+                } else if (widgetVal && typeof widgetVal === "object") {
+                    // Обезвреживаем Ozon Трафареты внутри сетки товаров без удаления самих товаров
+                    if (sanitizeTilesInWidget(widgetVal)) {
+                        if (isParsed) {
+                            data.widgetStates[key] = JSON.stringify(widgetVal);
+                        }
+                        modified = true;
+                    }
                 }
             }
         }
 
-        // 2. Очистка рекламных виджетов из дерева layout
+        // 2. Очистка структуры /widget/json/v2
+        if (data.state && typeof data.state === "object") {
+            if (sanitizeTilesInWidget(data.state)) {
+                modified = true;
+            }
+        }
+
+        // 3. Очистка рекламных виджетов из дерева layout
         if (Array.isArray(data.layout)) {
             const initialLen = data.layout.length;
 
@@ -209,7 +312,7 @@ function cleanOzonPayload(rawBody) {
                 return true;
             });
 
-            // 3. Схлопывание дублирующихся разделителей (separator, islandSeparator)
+            // 4. Схлопывание дублирующихся разделителей (separator, islandSeparator)
             let cleanedLayout = [];
             for (let i = 0; i < data.layout.length; i++) {
                 const cur = data.layout[i];
@@ -233,7 +336,7 @@ function cleanOzonPayload(rawBody) {
             }
         }
 
-        // 4. Зачистка встроенных трекинговых полезных нагрузок
+        // 5. Зачистка встроенных трекинговых полезных нагрузок
         if (data.trackingPayloads) {
             delete data.trackingPayloads;
             modified = true;
@@ -256,7 +359,9 @@ if (typeof $response !== "undefined" && $response.body) {
         cleanOzonPayload,
         shouldDeleteWidget,
         isWhitelistedWidget,
-        isAdWidget
+        isAdWidget,
+        neutralizeAdTile,
+        sanitizeTilesInWidget
     };
 } else {
     $done({});
