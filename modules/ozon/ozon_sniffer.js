@@ -1,84 +1,104 @@
 /**
- * 🕵️‍♂️ Ozon Deep Inspector & Forensic Sniffer
- * Логирует структуру страниц Composer: URL, компоненты layout, ключи виджетов и тип контента
+ * 🕵️‍♂️ Ozon Forensic Product & Grid Inspector
+ * Целевой сниффер для глубокого анализа структуры карточек товаров (tileGrid2, searchResults, полок):
+ * - Логирует ключи виджетов и количество плиток
+ * - Выводит подробную структуру каждого товара/плитки:
+ *   - Заголовок товара
+ *   - Поля трекинга (trackingInfo, cellTrackingInfo, advertLite, cpm, advType)
+ *   - Бейджи и плашки ("Реклама", "Спонсорский" и т.п.)
+ *   - Ссылки и экшены (adv_source, advert= и т.п.)
+ *   - Тип элемента (type, itemType, template)
  */
 
-const url = $request ? $request.url : "";
-const method = $request ? $request.method : "GET";
+const url = typeof $request !== "undefined" && $request.url ? $request.url : "";
+const method = typeof $request !== "undefined" && $request.method ? $request.method : "GET";
 
 if (typeof $response !== "undefined" && $response.body) {
     try {
         const bodyStr = $response.body;
 
-        // Игнорируем фоновую телеметрию/метрики, чтобы не спамить в лог
-        if (!url.includes("/p-api/tracker/") && !url.includes("/p-api/perf-metrics") && !url.includes("/trackEvent")) {
-            console.log(`\n================== [🕵️‍♂️ OZON INSPECTOR] ==================`);
-            console.log(`📡 ${method} ${url}`);
+        // Фильтруем телеметрию, трекеры и лишний шум
+        const isTelemetry = url.includes("/p-api/") || url.includes("/trackEvent") || url.includes("dlte");
+        
+        if (!isTelemetry && (url.includes("page/json") || url.includes("widget/json"))) {
+            const data = JSON.parse(bodyStr);
 
-            try {
-                const data = JSON.parse(bodyStr);
+            // Вспомогательная функция для детального инспектирования карточки товара
+            function inspectProductTile(tile, idx, widgetKey) {
+                if (!tile || typeof tile !== "object") return;
 
-                // 1. Если это страница page/json или widget/json
-                if (data.layout || data.widgetStates || data.state) {
-                    // Список элементов в layout
-                    if (Array.isArray(data.layout)) {
-                        const layoutSummary = data.layout.map((item, idx) => {
-                            const comp = item.component || "";
-                            const stateId = item.stateId || item.widgetKey || "";
-                            return `[${idx}] ${comp}${stateId ? " (" + stateId + ")" : ""}`;
-                        });
-                        console.log(`📑 LAYOUT (${data.layout.length} элементов):\n  ${layoutSummary.join("\n  ")}`);
-                    }
+                const target = (tile.product && typeof tile.product === "object") ? tile.product :
+                               ((tile.productItem && typeof tile.productItem === "object") ? tile.productItem : tile);
 
-                    // Анализ ключей и типов в widgetStates
-                    if (data.widgetStates && typeof data.widgetStates === "object") {
-                        const keys = Object.keys(data.widgetStates);
-                        console.log(`📦 WIDGET_STATES (${keys.length} виджетов):`);
-                        for (const k of keys) {
-                            let val = data.widgetStates[k];
-                            let preview = "";
-                            if (typeof val === "string") {
-                                try {
-                                    const parsed = JSON.parse(val);
-                                    const subkeys = Object.keys(parsed).join(", ");
-                                    const count = (parsed.tiles && parsed.tiles.length) || 
-                                                  (parsed.items && parsed.items.length) || 
-                                                  (parsed.products && parsed.products.length) || "";
-                                    preview = `[String-JSON: {${subkeys}}${count ? ", count=" + count : ""}]`;
-                                } catch (e) {
-                                    preview = `[Raw-String: ${val.slice(0, 100)}...]`;
-                                }
-                            } else if (val && typeof val === "object") {
-                                const subkeys = Object.keys(val).join(", ");
-                                const count = (val.tiles && val.tiles.length) || 
-                                              (val.items && val.items.length) || 
-                                              (val.products && val.products.length) || "";
-                                preview = `[Object: {${subkeys}}${count ? ", count=" + count : ""}]`;
-                            }
-                            console.log(`  🔑 ${k} => ${preview}`);
-                        }
-                    }
+                const title = target.title || (target.mainState && JSON.stringify(target.mainState).slice(0, 100)) || "";
+                const tileType = tile.type || target.type || "";
+                
+                // Маркеры рекламы
+                const tracking = target.cellTrackingInfo || target.trackingInfo || tile.cellTrackingInfo || tile.trackingInfo || {};
+                const clickCustom = (tracking.click && tracking.click.custom) || {};
+                const badges = target.badges || tile.badges || [];
+                const action = (target.common && target.common.action) || target.action || tile.action || {};
+                const actionLink = action.link || action.url || "";
 
-                    // Если это ответ /widget/json/v2
-                    if (data.state && typeof data.state === "object") {
-                        const count = (data.state.tiles && data.state.tiles.length) || 
-                                      (data.state.items && data.state.items.length) || 
-                                      (data.state.products && data.state.products.length) || 0;
-                        console.log(`📦 WIDGET SINGLE STATE: {${Object.keys(data.state).join(", ")}}, items count = ${count}`);
-                    }
-
-                } else {
-                    // Другие ответы (экшены, конфиги)
-                    console.log(`📄 PREVIEW: ${bodyStr.slice(0, 400)}...`);
+                // Проверяем наличие подозрительных или рекламных флагов
+                const markers = [];
+                if (target.isSponsored || tile.isSponsored) markers.push("isSponsored");
+                if (target.isAdv || tile.isAdv) markers.push("isAdv");
+                if (tracking.advertisement) markers.push("advertisement");
+                if (tracking.cpm) markers.push("cpm");
+                if (tracking.advType) markers.push("advType=" + tracking.advType);
+                if (clickCustom.advertLite) markers.push("advertLite=" + JSON.stringify(clickCustom.advertLite));
+                if (actionLink.includes("advert") || actionLink.includes("cpm") || actionLink.includes("adv_source")) {
+                    markers.push("actionLink=" + actionLink.slice(0, 80));
                 }
 
-            } catch (jsonErr) {
-                console.log(`📄 RAW BODY PREVIEW: ${bodyStr.slice(0, 300)}...`);
+                console.log(`    📦 [${idx}] Type: "${tileType}" | Title: "${title.slice(0, 40)}"`);
+                if (markers.length > 0) {
+                    console.log(`       🚨 AD_MARKERS: ${markers.join(" | ")}`);
+                }
+                console.log(`       🔎 Tracking keys: [${Object.keys(tracking).join(", ")}]`);
+                if (Object.keys(clickCustom).length > 0) {
+                    console.log(`       🔎 click.custom keys: [${Object.keys(clickCustom).join(", ")}]`);
+                }
+                if (Array.isArray(badges) && badges.length > 0) {
+                    console.log(`       🏷 Badges: ${JSON.stringify(badges)}`);
+                }
             }
-            console.log(`=========================================================\n`);
+
+            console.log(`\n================== [🕵️‍♂️ OZON GRID FORENSIC] ==================`);
+            console.log(`📡 ${method} ${url}`);
+
+            // 1. Анализ widgetStates
+            if (data.widgetStates && typeof data.widgetStates === "object") {
+                for (const key of Object.keys(data.widgetStates)) {
+                    let val = data.widgetStates[key];
+                    if (typeof val === "string") {
+                        try { val = JSON.parse(val); } catch (e) {}
+                    }
+
+                    if (val && typeof val === "object") {
+                        const tiles = val.tiles || val.products || val.searchResults;
+                        if (Array.isArray(tiles) && tiles.length > 0) {
+                            console.log(`\n  🔑 GRID WIDGET: ${key} (Всего товаров: ${tiles.length})`);
+                            tiles.forEach((t, i) => inspectProductTile(t, i, key));
+                        }
+                    }
+                }
+            }
+
+            // 2. Анализ /widget/json
+            if (data.state && typeof data.state === "object") {
+                const tiles = data.state.tiles || data.state.items || data.state.products;
+                if (Array.isArray(tiles) && tiles.length > 0) {
+                    console.log(`\n  🔑 SINGLE STATE WIDGET (Всего товаров: ${tiles.length})`);
+                    tiles.forEach((t, i) => inspectProductTile(t, i, "single_state"));
+                }
+            }
+
+            console.log(`=============================================================\n`);
         }
-    } catch (e) {
-        console.log(`❌ Sniffer error: ${e.message}`);
+    } catch (err) {
+        console.log(`❌ Grid Sniffer error: ${err.message}`);
     }
 }
 
