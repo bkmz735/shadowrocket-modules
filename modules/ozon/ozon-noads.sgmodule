@@ -18,6 +18,7 @@ DOMAIN-SUFFIX,googlesyndication.com,REJECT
 DOMAIN-SUFFIX,weborama-tech.ru,REJECT
 DOMAIN-SUFFIX,serving-sys.ru,REJECT
 DOMAIN-SUFFIX,litix.io,REJECT
+DOMAIN-SUFFIX,appsflyersdk.com,REJECT
 
 # Внутренние трекеры кликов/показов Ozon и аналитика Ozon Банка
 DOMAIN-SUFFIX,p.ozon.ru,REJECT
@@ -35,7 +36,7 @@ URL-REGEX,^https?:\/\/api\.ozon\.ru\/api\/composer-api\.bx\/page\/json\/v2\?url=
 
 [Script]
 # Вырезка рекламы, баннеров, кредитов и спонсорских товаров (page/json и widget/json)
-ozon-cleaner = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/.*(page|widget)\/json.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js?v=3.0,timeout=15
+ozon-cleaner = type=http-response,pattern=^https?:\/\/api\.ozon\.ru\/.*(page|widget)\/json.*$,requires-body=1,max-size=5242880,script-path=https://raw.githubusercontent.com/bkmz735/shadowrocket-modules/main/modules/ozon/ozon_cleaner.js?v=3.1,timeout=15
 
 [MITM]
 hostname = %APPEND% api.ozon.ru

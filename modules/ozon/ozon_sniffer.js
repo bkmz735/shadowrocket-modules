@@ -11,9 +11,7 @@ if (typeof $response !== "undefined" && $response.body) {
         const bodyStr = $response.body;
 
         // Игнорируем фоновую телеметрию/метрики, чтобы не спамить в лог
-        if (url.includes("/p-api/tracker/") || url.includes("/p-api/perf-metrics") || url.includes("/trackEvent")) {
-            $done({});
-        } else {
+        if (!url.includes("/p-api/tracker/") && !url.includes("/p-api/perf-metrics") && !url.includes("/trackEvent")) {
             console.log(`\n================== [🕵️‍♂️ OZON INSPECTOR] ==================`);
             console.log(`📡 ${method} ${url}`);
 

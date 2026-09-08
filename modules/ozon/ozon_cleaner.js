@@ -64,7 +64,13 @@ function isAdWidgetPrefix(key) {
     const lower = key.toLowerCase();
     for (let i = 0; i < AD_WIDGET_PREFIXES.length; i++) {
         const prefix = AD_WIDGET_PREFIXES[i];
-        if (lower.startsWith(prefix) || lower.includes("." + prefix) || lower.includes(prefix)) {
+        if (
+            lower === prefix ||
+            lower.startsWith(prefix + "-") ||
+            lower.startsWith(prefix + ".") ||
+            lower.startsWith(prefix + "_") ||
+            lower.includes("." + prefix)
+        ) {
             return true;
         }
     }
@@ -160,15 +166,20 @@ function isSponsoredProductItem(item) {
         }
     }
 
-    // 4. Проверка типа элемента (только явные рекламные типы, исключая обычный product)
+    // 4. Проверка типа элемента (только явные рекламные типы, исключая обычный product и системные свойства)
     const rawType = item.type || item.itemType || target.type || target.itemType || "";
     const lowerType = rawType.toLowerCase();
     if (
-        lowerType.startsWith("adv") ||
-        lowerType.startsWith("ad") ||
-        lowerType.includes("sponsored") ||
         lowerType === "banner" ||
-        lowerType.startsWith("banner")
+        lowerType === "adv" ||
+        lowerType === "advtile" ||
+        lowerType === "advbanner" ||
+        lowerType === "adbanner" ||
+        lowerType.startsWith("adv_") ||
+        lowerType.startsWith("adv-") ||
+        lowerType.startsWith("banner_") ||
+        lowerType.startsWith("banner-") ||
+        lowerType.includes("sponsored")
     ) {
         return true;
     }
@@ -197,13 +208,13 @@ function isSponsoredProductItem(item) {
     return false;
 }
 
-// Фильтрация рекламных товаров внутри поисковой выдачи, каталогов и полок
+// Фильтрация рекламных товаров внутри поисковой выдачи, каталогов и полок (только товарные массивы)
 function filterItemsInWidgetState(state) {
     if (!state || typeof state !== "object") return false;
     let modified = false;
 
-    // Массивы с товарами в Composer: items, products, tiles, searchResults, shelf
-    const candidateArrays = ["items", "products", "tiles", "catalog", "elements"];
+    // Фильтруем только массивы товаров/плиток, НЕ трогая системные items меню (navigationSlider и т.п.)
+    const candidateArrays = ["tiles", "products", "searchResults", "catalog"];
     for (let a = 0; a < candidateArrays.length; a++) {
         const arrName = candidateArrays[a];
         if (Array.isArray(state[arrName])) {
@@ -221,7 +232,7 @@ function filterItemsInWidgetState(state) {
 // Проверка, опустел ли виджет полностью после вырезки рекламных карточек
 function isWidgetCompletelyEmpty(state) {
     if (!state || typeof state !== "object") return false;
-    const candidateArrays = ["items", "products", "tiles", "catalog", "elements"];
+    const candidateArrays = ["tiles", "products", "searchResults", "catalog"];
     let foundArray = false;
     for (let a = 0; a < candidateArrays.length; a++) {
         const arr = state[candidateArrays[a]];
@@ -247,6 +258,11 @@ function cleanOzonPayload(rawBody) {
 
         // 1. Очистка структуры эндпоинта /widget/json/v2 (где нет widgetStates, а сразу { state: { items: [...] } })
         if (data.state && typeof data.state === "object") {
+            if (Array.isArray(data.state.items)) {
+                const orig = data.state.items.length;
+                data.state.items = data.state.items.filter(item => !isSponsoredProductItem(item));
+                if (data.state.items.length !== orig) modified = true;
+            }
             if (filterItemsInWidgetState(data.state)) {
                 modified = true;
             }
@@ -334,7 +350,7 @@ function cleanOzonPayload(rawBody) {
             });
 
             // Очистка разделителей (separator, islandSeparator)
-            // 1. Убираем любые идущие подряд разделители любого типа
+            // Схлопываем только подряд идущие разделители, не трогая разделители между смысловыми блоками
             let cleanedLayout = [];
             for (let i = 0; i < data.layout.length; i++) {
                 const cur = data.layout[i];
@@ -349,26 +365,6 @@ function cleanOzonPayload(rawBody) {
                     }
                 }
                 cleanedLayout.push(cur);
-            }
-
-            // 2. Убираем висящие разделители в самом начале или в самом конце массива
-            while (cleanedLayout.length > 0) {
-                const first = cleanedLayout[0];
-                const firstComp = (first.component || first.name || first.widgetKey || first.stateId || "").toLowerCase();
-                if (firstComp.includes("separator")) {
-                    cleanedLayout.shift();
-                } else {
-                    break;
-                }
-            }
-            while (cleanedLayout.length > 0) {
-                const last = cleanedLayout[cleanedLayout.length - 1];
-                const lastComp = (last.component || last.name || last.widgetKey || last.stateId || "").toLowerCase();
-                if (lastComp.includes("separator")) {
-                    cleanedLayout.pop();
-                } else {
-                    break;
-                }
             }
 
             data.layout = cleanedLayout;
