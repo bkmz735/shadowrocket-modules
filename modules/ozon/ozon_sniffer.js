@@ -1,105 +1,220 @@
 /**
- * 🕵️‍♂️ Ozon Forensic Product & Grid Inspector
- * Целевой сниффер для глубокого анализа структуры карточек товаров (tileGrid2, searchResults, полок):
- * - Логирует ключи виджетов и количество плиток
- * - Выводит подробную структуру каждого товара/плитки:
- *   - Заголовок товара
- *   - Поля трекинга (trackingInfo, cellTrackingInfo, advertLite, cpm, advType)
- *   - Бейджи и плашки ("Реклама", "Спонсорский" и т.п.)
- *   - Ссылки и экшены (adv_source, advert= и т.п.)
- *   - Тип элемента (type, itemType, template)
+ * 🕵️‍♂️ Ozon Ultra-Light Smart Sniffer v2.0
+ * Диагностический инструмент разведки для поиска:
+ * - Эндпоинтов, обращений и экшенов API
+ * - Диплинков приложения (ozon://...) и промо-ссылок
+ * - Купонов, промокодов, розыгрышей, бонусов и акций
+ * - Рекламных виджетов и спонсорских карточек ("Трафаретов")
+ * 
+ * ⚡ Оптимизирован под лимиты памяти iOS Network Extension (Jetsam 15-30 МБ):
+ * - Мгновенный сброс телеметрии без парсинга JSON
+ * - Лимит размера тела (макс. 1.5 МБ для парсинга)
+ * - Контролируемая глубина обхода объектов (без утечек стека и памяти)
+ * - Дедупликация и лимиты находок (макс. 5-7 ссылок на запрос)
+ * - Консолидированный компактный лог (один console.log на запрос, макс. 2 КБ)
  */
 
 const url = typeof $request !== "undefined" && $request.url ? $request.url : "";
 const method = typeof $request !== "undefined" && $request.method ? $request.method : "GET";
 
-if (typeof $response !== "undefined" && $response.body) {
+(function runSniffer() {
+    if (typeof $response === "undefined" || !$response.body || !url) {
+        $done({});
+        return;
+    }
+
+    // 1. Быстрый фильтр шума (телеметрия, пиксели, аналитика, бинарные данные) — 0% оверхеда памяти
+    const lowerUrl = url.toLowerCase();
+    if (
+        lowerUrl.includes("/p-api/") ||
+        lowerUrl.includes("/trackevent") ||
+        lowerUrl.includes("perf-metrics") ||
+        lowerUrl.includes("sentry") ||
+        lowerUrl.includes("dlte") ||
+        lowerUrl.includes(".png") ||
+        lowerUrl.includes(".jpg") ||
+        lowerUrl.includes(".webp") ||
+        lowerUrl.includes(".svg")
+    ) {
+        $done({});
+        return;
+    }
+
+    const bodyStr = $response.body;
+
+    // 2. Защита от перегрузки памяти iOS: пропускаем гигантские ответы (> 1.5 МБ)
+    if (bodyStr.length > 1572864) {
+        console.log(`⚠️ [OZON SNIFFER] Пропущен слишком большой ответ (${(bodyStr.length / 1024 / 1024).toFixed(1)} МБ): ${url.slice(0, 80)}`);
+        $done({});
+        return;
+    }
+
     try {
-        const bodyStr = $response.body;
+        const data = JSON.parse(bodyStr);
+        if (!data || typeof data !== "object") {
+            $done({});
+            return;
+        }
 
-        // Фильтруем телеметрию, трекеры и лишний шум
-        const isTelemetry = url.includes("/p-api/") || url.includes("/trackEvent") || url.includes("dlte");
-        
-        if (!isTelemetry && (url.includes("page/json") || url.includes("widget/json"))) {
-            const data = JSON.parse(bodyStr);
+        // Коллекторы находок с жесткими лимитами
+        const deeplinks = new Set();
+        const promoActions = new Set();
+        const coupons = [];
+        const adWidgetsFound = new Set();
+        let totalTiles = 0;
+        let sponsoredTiles = 0;
+        const sampleSponsoredTitles = [];
 
-            // Вспомогательная функция для детального инспектирования карточки товара
-            function inspectProductTile(tile, idx, widgetKey) {
-                if (!tile || typeof tile !== "object") return;
+        // 3. Быстрый рекурсивный сканер для поиска диплинков, ссылок и промокодов (макс. глубина 4, макс. 300 узлов)
+        let visitedNodes = 0;
+        function scanNode(node, depth) {
+            if (!node || typeof node !== "object" || depth > 4 || visitedNodes > 300) return;
+            visitedNodes++;
 
-                const target = (tile.product && typeof tile.product === "object") ? tile.product :
-                               ((tile.productItem && typeof tile.productItem === "object") ? tile.productItem : tile);
-
-                const title = target.title || (target.mainState && JSON.stringify(target.mainState).slice(0, 100)) || "";
-                const tileType = tile.type || target.type || "";
-                
-                // Маркеры рекламы
-                const tracking = target.cellTrackingInfo || target.trackingInfo || tile.cellTrackingInfo || tile.trackingInfo || {};
-                const clickCustom = (tracking.click && tracking.click.custom) || {};
-                const badges = target.badges || tile.badges || [];
-                const action = (target.common && target.common.action) || target.action || tile.action || {};
-                const actionLink = action.link || action.url || "";
-
-                // Проверяем наличие подозрительных или рекламных флагов
-                const markers = [];
-                if (target.isSponsored || tile.isSponsored) markers.push("isSponsored");
-                if (target.isAdv || tile.isAdv) markers.push("isAdv");
-                if (tracking.advertisement) markers.push("advertisement");
-                if (tracking.cpm) markers.push("cpm");
-                if (tracking.advType) markers.push("advType=" + tracking.advType);
-                if (clickCustom.advertLite) markers.push("advertLite=" + JSON.stringify(clickCustom.advertLite));
-                if (actionLink.includes("advert") || actionLink.includes("cpm") || actionLink.includes("adv_source")) {
-                    markers.push("actionLink=" + actionLink.slice(0, 80));
+            if (Array.isArray(node)) {
+                for (let i = 0; i < node.length && i < 30; i++) {
+                    scanNode(node[i], depth + 1);
                 }
-
-                console.log(`    📦 [${idx}] Type: "${tileType}" | Title: "${title.slice(0, 40)}"`);
-                if (markers.length > 0) {
-                    console.log(`       🚨 AD_MARKERS: ${markers.join(" | ")}`);
-                }
-                console.log(`       🔎 Tracking keys: [${Object.keys(tracking).join(", ")}]`);
-                if (Object.keys(clickCustom).length > 0) {
-                    console.log(`       🔎 click.custom keys: [${Object.keys(clickCustom).join(", ")}]`);
-                }
-                if (Array.isArray(badges) && badges.length > 0) {
-                    console.log(`       🏷 Badges: ${JSON.stringify(badges)}`);
-                }
+                return;
             }
 
-            console.log(`\n================== [🕵️‍♂️ OZON GRID FORENSIC] ==================`);
-            console.log(`📡 ${method} ${url}`);
-
-            // 1. Анализ widgetStates
-            if (data.widgetStates && typeof data.widgetStates === "object") {
-                for (const key of Object.keys(data.widgetStates)) {
-                    let val = data.widgetStates[key];
-                    if (typeof val === "string") {
-                        try { val = JSON.parse(val); } catch (e) {}
+            for (const key of Object.keys(node)) {
+                const val = node[key];
+                if (typeof val === "string") {
+                    // Поиск диплинков ozon://
+                    if (val.startsWith("ozon://") && deeplinks.size < 5) {
+                        deeplinks.add(val);
+                    }
+                    // Поиск промо-ссылок и экшенов
+                    else if ((val.includes("_action/") || val.includes("/highlight/") || val.includes("/promo/")) && promoActions.size < 5) {
+                        promoActions.add(val.slice(0, 100));
                     }
 
-                    if (val && typeof val === "object") {
-                        const tiles = val.tiles || val.products || val.searchResults;
-                        if (Array.isArray(tiles) && tiles.length > 0) {
-                            console.log(`\n  🔑 GRID WIDGET: ${key} (Всего товаров: ${tiles.length})`);
-                            tiles.forEach((t, i) => inspectProductTile(t, i, key));
+                    // Поиск купонов и промокодов
+                    const lk = key.toLowerCase();
+                    if ((lk.includes("promocode") || lk.includes("couponcode") || lk === "code") && val.length >= 3 && val.length <= 25) {
+                        if (coupons.length < 4 && !coupons.some(c => c.code === val)) {
+                            coupons.push({ code: val, title: node.title || node.name || node.text || key });
+                        }
+                    }
+                } else if (typeof val === "object" && val !== null) {
+                    scanNode(val, depth + 1);
+                }
+            }
+        }
+
+        scanNode(data, 0);
+
+        // 4. Анализ виджетов и структуры страницы (если это page/json или widget/json)
+        if (data.widgetStates && typeof data.widgetStates === "object") {
+            for (const key of Object.keys(data.widgetStates)) {
+                const lk = key.toLowerCase();
+
+                // Детект рекламных виджетов
+                if (
+                    lk.includes("advbanner") ||
+                    lk.includes("promobanner") ||
+                    lk.includes("brandshelf") ||
+                    lk.includes("advshelf") ||
+                    lk.includes("regulardraw") ||
+                    lk.includes("fintab") ||
+                    lk.includes("billboard") ||
+                    lk.includes("tipping") ||
+                    lk.includes("rateitem")
+                ) {
+                    if (adWidgetsFound.size < 6) {
+                        adWidgetsFound.add(key.split("-")[0]);
+                    }
+                }
+
+                // Детект спонсорских карточек товаров (Трафареты)
+                let val = data.widgetStates[key];
+                if (typeof val === "string" && (val.includes("advertLite") || val.includes("isSponsored") || val.includes("tiles") || val.includes("products"))) {
+                    try { val = JSON.parse(val); } catch (e) {}
+                }
+
+                if (val && typeof val === "object") {
+                    const tiles = val.tiles || val.products || val.searchResults || val.items;
+                    if (Array.isArray(tiles)) {
+                        totalTiles += tiles.length;
+                        for (let i = 0; i < tiles.length; i++) {
+                            const t = tiles[i];
+                            const target = (t && t.product) ? t.product : ((t && t.productItem) ? t.productItem : t);
+                            if (!target || typeof target !== "object") continue;
+
+                            const tracking = target.cellTrackingInfo || target.trackingInfo || t.cellTrackingInfo || t.trackingInfo || {};
+                            const clickCustom = (tracking.click && tracking.click.custom) || {};
+                            const action = (target.common && target.common.action) || target.action || t.action || {};
+                            const actionLink = action.link || action.url || "";
+
+                            const isAd = target.isSponsored || t.isSponsored || target.isAdv || t.isAdv ||
+                                         tracking.advertisement || tracking.cpm || tracking.advType ||
+                                         clickCustom.advertLite || actionLink.includes("advert=");
+
+                            if (isAd) {
+                                sponsoredTiles++;
+                                if (sampleSponsoredTitles.length < 2) {
+                                    const title = target.title || "Товар #" + i;
+                                    sampleSponsoredTitles.push(title.slice(0, 35));
+                                }
+                            }
                         }
                     }
                 }
             }
+        }
 
-            // 2. Анализ /widget/json
-            if (data.state && typeof data.state === "object") {
-                const tiles = data.state.tiles || data.state.items || data.state.products;
-                if (Array.isArray(tiles) && tiles.length > 0) {
-                    console.log(`\n  🔑 SINGLE STATE WIDGET (Всего товаров: ${tiles.length})`);
-                    tiles.forEach((t, i) => inspectProductTile(t, i, "single_state"));
+        // 5. Формируем компактный консолидированный лог (только если найдено что-то полезное)
+        const hasFindings = deeplinks.size > 0 || promoActions.size > 0 || coupons.length > 0 ||
+                            adWidgetsFound.size > 0 || totalTiles > 0 || url.includes("_action/");
+
+        if (hasFindings) {
+            // Извлекаем чистый URL или внутренний путь страницы
+            let pageRoute = "";
+            const pageMatch = url.match(/url=([^&]+)/);
+            if (pageMatch) {
+                try { pageRoute = decodeURIComponent(pageMatch[1]); } catch (e) { pageRoute = pageMatch[1]; }
+            } else {
+                const uObj = url.split("?")[0].replace("https://api.ozon.ru", "");
+                pageRoute = uObj.slice(0, 60);
+            }
+
+            const lines = [];
+            lines.push(`\n🔎 [OZON SNIFFER] ${method} ${pageRoute}`);
+
+            if (deeplinks.size > 0) {
+                lines.push(`  🔗 Диплинки (${deeplinks.size}):`);
+                deeplinks.forEach(dl => lines.push(`     → ${dl}`));
+            }
+
+            if (coupons.length > 0) {
+                lines.push(`  🎟 Купоны/Промокоды (${coupons.length}):`);
+                coupons.forEach(c => lines.push(`     → [${c.code}] ${c.title}`));
+            }
+
+            if (promoActions.size > 0) {
+                lines.push(`  ⚡ Ссылки/Экшены (${promoActions.size}):`);
+                promoActions.forEach(a => lines.push(`     → ${a}`));
+            }
+
+            if (adWidgetsFound.size > 0) {
+                lines.push(`  📢 Рекламные виджеты: [${Array.from(adWidgetsFound).join(", ")}]`);
+            }
+
+            if (totalTiles > 0) {
+                lines.push(`  📦 Сетка товаров: всего ${totalTiles} (Органика: ${totalTiles - sponsoredTiles}, Трафареты: ${sponsoredTiles})`);
+                if (sampleSponsoredTitles.length > 0) {
+                    lines.push(`     Примеры спонсорских: "${sampleSponsoredTitles.join('", "')}"`);
                 }
             }
 
-            console.log(`=============================================================\n`);
+            // Единый атомарный вывод в лог (не забивает буфер и память консоли)
+            console.log(lines.join("\n"));
         }
-    } catch (err) {
-        console.log(`❌ Grid Sniffer error: ${err.message}`);
-    }
-}
 
-$done({});
+    } catch (err) {
+        // Защита от падений скрипта: тихо завершаем без утечек
+    } finally {
+        $done({});
+    }
+})();
